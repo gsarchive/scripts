@@ -14,19 +14,72 @@ import esprima # ImportError? pip install -r requirements.txt
 # root = "/home/rosuav/gsarchive/live"
 root = "/home/rosuav/gsarchive/clone"
 
+class ExceptionContext:
+	def __init__(self, label, ctx):
+		self.label = label; self.ctx = ctx
+	def __enter__(self): return self
+	def __exit__(self, t, v, c):
+		if not t: return
+		try: v.context
+		except AttributeError: v.context = { }
+		v.context[self.label] = self.ctx
+
+_old_excepthook = sys.excepthook
+def report_with_context(t, v, c):
+	try:
+		for lbl, ctx in reversed(v.context.items()):
+			print(lbl + ":", ctx)
+	except AttributeError: pass
+	_old_excepthook(t, v, c)
+sys.excepthook = report_with_context
+
+def find_popup_args(expr):
+	"""Recursively scan an expression for an openPop* call"""
+	match expr:
+		case esprima.nodes.ExpressionStatement(expression=e):
+			return find_popup_args(e)
+		case esprima.nodes.CallExpression(callee=callee, arguments=args):
+			if callee.type == "Identifier" and callee.name.startswith("openPop"):
+				return [
+					# TODO: Understand other types of arg
+					# For now assumes type == "Literal"
+					a.value
+					for a in args
+				]
+		case esprima.nodes.Node(body=[*body]):
+			# Anything that has a body, scan for any matching things
+			for elem in body:
+				if a := find_popup_args(elem): return a
+	# Otherwise, we got nuffin'.
+	return None
+
+def classify_link(elem, p):
+	info = { }
+	if not elem.children and not elem.text: info["void"] = True # Unclickable as it has no content
+	if not p.path: return info | {"type": "Blank"}
+	if p.path == ";": return info | {"type": "Semicolon"} # Practically blank, but show it separately for stats
+	expr = esprima.parse(p.path)
+	args = find_popup_args(expr)
+	if args:
+		return info | {"type": "openPop, %d args" % len(args)}
+	return info | {"type": "Unknown"}
+
 stats = collections.Counter()
 def classify(fn):
 	info = { }
 	with open(fn, "rb") as f: blob = f.read()
 	soup = BeautifulSoup(blob, "html5lib")
-	for elem in soup.find_all("a"):
-		p = urlparse(elem["href"])
-		if p.scheme.lower() == "javascript":
-			print(elem["href"])
+	for elem in soup.find_all("a", href=True):
+		with ExceptionContext("Element", elem):
+			p = urlparse(elem["href"])
+			if p.scheme.lower() == "javascript":
+				info = classify_link(elem, p)
+				stats[info["type"]] += 1
+				if "void" in info: stats["Void"] += 1
 
 for fn in sys.argv[1:]:
 	if os.path.exists(fn):
-		classify(fn)
+		with ExceptionContext("File name", fn): classify(fn)
 		sys.exit(0)
 
 with open("weasels.log", "w") as log:
@@ -35,6 +88,6 @@ with open("weasels.log", "w") as log:
 		for file in files:
 			if not file.endswith(".html") and not file.endswith(".htm"): continue
 			fn = os.path.join(root, file)
-			try: classify(fn)
-			except: print(fn); raise
+			with ExceptionContext("File name", fn):
+				classify(fn)
 print(stats.total(), stats)
