@@ -16,3 +16,12 @@ If any page does not have an integrated copyright footer, add this:
     <p class="copyright"><a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png"></a>
     This work is licensed under a <BR> <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.</p>
     </footer>
+
+To recreate the clone directory:
+
+    On the server:
+    $ cd public_html
+    $ find -type f -name \*.htm* >backups/htmlfiles.txt
+    On the client:
+    $ mount live
+    $ rsync -Pav gsarchiv:public_html/ --files-from live/backups/htmlfiles.txt clone/
