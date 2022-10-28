@@ -53,12 +53,13 @@ def find_popup_args(expr):
 	# Otherwise, we got nuffin'.
 	return None
 
-def classify_link(elem, p):
+def classify_link(elem, js):
 	info = { }
 	if not elem.children and not elem.text: info["void"] = True # Unclickable as it has no content
-	if not p.path: return info | {"type": "Blank"}
-	if p.path == ";": return info | {"type": "Semicolon"} # Practically blank, but show it separately for stats
-	expr = esprima.parse(p.path)
+	if not js: return info | {"type": "Blank"}
+	if js == ";": return info | {"type": "Semicolon"} # Practically blank, but show it separately for stats
+	with ExceptionContext("JS code", js):
+		expr = esprima.parse(js)
 	args = find_popup_args(expr)
 	if args:
 		return info | {"type": "openPop, %d args" % len(args)}
@@ -73,13 +74,19 @@ def classify(fn):
 		with ExceptionContext("Element", elem):
 			p = urlparse(elem["href"])
 			if p.scheme.lower() == "javascript":
-				info = classify_link(elem, p)
+				# When a question mark appears in the JS, browsers actually interpret it
+				# as the beginning of query parameters, as the apostrophe does not quote
+				# it. For our purposes, though, it's cleaner to simply rejoin that.
+				js = p.path
+				if p.query: js += "?" + p.query
+				info = classify_link(elem, js)
 				stats[info["type"]] += 1
 				if "void" in info: stats["Void"] += 1
 
 for fn in sys.argv[1:]:
 	if os.path.exists(fn):
 		with ExceptionContext("File name", fn): classify(fn)
+		print(stats.total(), stats)
 		sys.exit(0)
 
 with open("weasels.log", "w") as log:
