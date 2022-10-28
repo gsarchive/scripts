@@ -40,7 +40,7 @@ def find_popup_args(expr):
 			return find_popup_args(e)
 		case esprima.nodes.CallExpression(callee=callee, arguments=args):
 			if callee.type == "Identifier" and callee.name.startswith("openPop"):
-				return [
+				return callee.name, [
 					# TODO: Understand other types of arg
 					# For now assumes type == "Literal"
 					a.value
@@ -51,18 +51,19 @@ def find_popup_args(expr):
 			for elem in body:
 				if a := find_popup_args(elem): return a
 	# Otherwise, we got nuffin'.
-	return None
+	return None, None
 
 def classify_link(elem, js):
-	info = { }
-	if not elem.children and not elem.text: info["void"] = True # Unclickable as it has no content
+	info = {"attrs": ",".join(sorted(elem.attrs))}
+	if not elem.contents and not elem.text: info["void"] = True # Unclickable as it has no content
 	if not js: return info | {"type": "Blank"}
 	if js == ";": return info | {"type": "Semicolon"} # Practically blank, but show it separately for stats
+	if js == "window.close()": return info | {"type": "Close window"}
 	with ExceptionContext("JS code", js):
 		expr = esprima.parse(js)
-	args = find_popup_args(expr)
-	if args:
-		return info | {"type": "openPop, %d args" % len(args)}
+	fn, args = find_popup_args(expr)
+	if fn:
+		return info | {"type": fn + ", %d args" % len(args)}
 	return info | {"type": "Unknown"}
 
 stats = collections.Counter()
@@ -80,8 +81,10 @@ def classify(fn):
 				js = p.path
 				if p.query: js += "?" + p.query
 				info = classify_link(elem, js)
-				stats[info["type"]] += 1
-				if "void" in info: stats["Void"] += 1
+				ty = "Void" if "Void" in stats else info["type"] + " [" + info["attrs"] + "]"
+				if ty not in stats:
+					print(ty, fn)
+				stats[ty] += 1
 
 for fn in sys.argv[1:]:
 	if os.path.exists(fn):
