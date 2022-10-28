@@ -1,9 +1,26 @@
 # ... the weasel (WEISEL!)
 # Locate all JS links and categorize them
-# - Empty <a href="JAVASCRIPT:">
 # - Void <a ...></a>
+# - Empty <a href="JAVASCRIPT:"> or Semicolon <a href="JAVASCRIPT:;">
+# - window.close()
 # - openPopImg(image, title, width, height)
+# - openPopWin(url, width, height[, features[, width, height]])
 # - Other/Unknown
+#
+# TODO: Classify the onmouseover and onmouseout attributes, if present
+# - setStatus() - delete this, the HTML spec requires that it be useless
+# - MM_nbGroup
+# - Other/Unknown
+#
+# Eventually, write back with changes:
+# - Void links get excised
+# - onmouseover/onmouseout setStatus get dropped
+# - openPopImg --> <a href=image title=title class=popup>
+# - openPopWin --> ???
+# - Otherwise retain as-is
+# If adding any class=popup, ensure presence of both CSS and JS in head
+# (see copywrong.py write_back())
+
 import os
 import sys
 import collections
@@ -63,7 +80,7 @@ def classify_link(elem, js):
 		expr = esprima.parse(js)
 	fn, args = find_popup_args(expr)
 	if fn:
-		return info | {"type": fn + ", %d args" % len(args)}
+		return info | {"type": fn}
 	return info | {"type": "Unknown"}
 
 stats = collections.Counter()
