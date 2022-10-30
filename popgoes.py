@@ -23,6 +23,7 @@
 
 import os
 import sys
+import re
 import collections
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin, unquote, ParseResult
@@ -30,6 +31,17 @@ import esprima # ImportError? pip install -r requirements.txt
 
 # root = "/home/rosuav/gsarchive/live"
 root = "/home/rosuav/gsarchive/clone"
+
+JS_FORMATS = {
+	"Blank": "^$",
+	"Semicolon": "^;$", # Practically blank, but show it separately for stats
+	"Close window": "^window.close\(\)$",
+	"Status - clear": "^(return)?\s*setStatus\(''\)$",
+	"Status - enlarge": "^(return)?\s*setStatus\('Click to enlarge picture.'\)$",
+	"Status - other": "^(return)?\s*setStatus\(.*\)$",
+}
+for id, regex in JS_FORMATS.items():
+	JS_FORMATS[id] = re.compile(regex, re.IGNORECASE | re.VERBOSE | re.DOTALL)
 
 class ExceptionContext:
 	def __init__(self, label, ctx):
@@ -73,9 +85,8 @@ def find_func_args(expr, fnprefix):
 def classify_link(elem, js):
 	info = {"attrs": ",".join(sorted(elem.attrs))}
 	if not elem.contents and not elem.text: info["void"] = True # Unclickable as it has no content
-	if not js: return info | {"type": "Blank"}
-	if js == ";": return info | {"type": "Semicolon"} # Practically blank, but show it separately for stats
-	if js == "window.close()": return info | {"type": "Close window"}
+	for id, regex in JS_FORMATS.items():
+		if regex.match(js): return info | {"type": id}
 	with ExceptionContext("JS code", js):
 		expr = esprima.parse(js)
 	fn, args = find_func_args(expr, "openPop")
@@ -84,7 +95,8 @@ def classify_link(elem, js):
 	return info | {"type": "Unknown"}
 
 def classify_hover(elem, js):
-	if js == "return setStatus('')": return {"type": "Status - clear"}
+	for id, regex in JS_FORMATS.items():
+		if regex.match(js): return {"type": id}
 	# esprima doesn't like a bare return statement. I'm not entirely sure how this is meant
 	# to be interpreted, but I'm wrapping it in a special function and then getting the body
 	# of that function.
@@ -93,12 +105,7 @@ def classify_hover(elem, js):
 		assert module.type == "Program"
 		assert module.body[0].type == "FunctionDeclaration"
 		expr = module.body[0].body # The body of the function we just defined
-	fn, args = find_func_args(expr, "setStatus")
-	if fn:
-		if args[0] == "": return {"type": "Status - clear"}
-		if args[0] == "Click to enlarge picture.": return {"type": "Status - enlarge"}
-		return {"type": "Status - other"}
-	return {"type": "Unknown"}
+	return {"type": "Unknown", "js": str(expr)}
 
 stats = collections.Counter()
 hovers = collections.Counter()
