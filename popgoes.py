@@ -39,6 +39,7 @@ JS_FORMATS = {
 	"Status - clear": "^(return)?\s*setStatus\(''\)$",
 	"Status - enlarge": "^(return)?\s*setStatus\('Click to enlarge picture.'\)$",
 	"Status - other": "^(return)?\s*setStatus\(.*\)$",
+	"Hover CSS class": "^this\.className\s*=\s*'(on|off)';?$",
 }
 for id, regex in JS_FORMATS.items():
 	JS_FORMATS[id] = re.compile(regex, re.IGNORECASE | re.VERBOSE | re.DOTALL)
@@ -89,9 +90,9 @@ def classify_link(elem, js):
 		if regex.match(js): return info | {"type": id}
 	with ExceptionContext("JS code", js):
 		expr = esprima.parse(js)
+	# TODO: Recognize if there's any other code here (unlikely but possible)
 	fn, args = find_func_args(expr, "openPop")
-	if fn:
-		return info | {"type": fn}
+	if fn: return info | {"type": fn}
 	return info | {"type": "Unknown"}
 
 def classify_hover(elem, js):
@@ -105,6 +106,10 @@ def classify_hover(elem, js):
 		assert module.type == "Program"
 		assert module.body[0].type == "FunctionDeclaration"
 		expr = module.body[0].body # The body of the function we just defined
+	fn, args = find_func_args(expr, "MM_nbGroup")
+	if fn: return {"type": fn}
+	fn, args = find_func_args(expr, "MM_swap")
+	if fn: return {"type": fn}
 	return {"type": "Unknown", "js": str(expr)}
 
 stats = collections.Counter()
