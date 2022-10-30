@@ -134,7 +134,7 @@ def classify(fn):
 				if ty not in stats:
 					print(ty, fn)
 				stats[ty] += 1
-			for attr in ("onmouseover", "onmouseout"):
+			for attr in ("onclick", "onmouseover", "onmouseout"):
 				if attr not in elem.attrs: continue
 				info = classify_hover(elem, elem[attr])
 				if info["type"] not in hovers:
