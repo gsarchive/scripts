@@ -9,12 +9,14 @@
 #
 # TODO: Classify the onmouseover and onmouseout attributes, if present
 # - setStatus() - delete this, the HTML spec requires that it be useless
+# - this.className = "on/off" - delete this as the CSS styles have now been
+#   applied to the class instead
 # - MM_nbGroup
 # - Other/Unknown
 #
 # Eventually, write back with changes:
 # - Void links get excised
-# - onmouseover/onmouseout setStatus get dropped
+# - onmouseover/onmouseout setStatus and className get dropped
 # - openPopImg --> <a href=image title=title class=popup>
 # - openPopWin --> ???
 # - Otherwise retain as-is
@@ -35,11 +37,11 @@ root = "/home/rosuav/gsarchive/clone"
 JS_FORMATS = {
 	"Blank": "^$",
 	"Semicolon": "^;$", # Practically blank, but show it separately for stats
-	"Close window": "^window.close\(\)$",
-	"Status - clear": "^(return)?\s*setStatus\(''\)$",
-	"Status - enlarge": "^(return)?\s*setStatus\('Click to enlarge picture.'\)$",
-	"Status - other": "^(return)?\s*setStatus\(.*\)$",
-	"Hover CSS class": "^this\.className\s*=\s*'(on|off)';?$",
+	"Close window": r"^window.close\(\)$",
+	"Status - clear": r"^(return)?\s*setStatus\(''\)$",
+	"Status - enlarge": r"^(return)?\s*setStatus\('Click\s*to\s*enlarge\s*picture.'\)$",
+	"Status - other": r"^(return)?\s*setStatus\(.*\)$",
+	"Hover CSS class": r"^this\.className\s*=\s*'(on|off)';?$",
 }
 for id, regex in JS_FORMATS.items():
 	JS_FORMATS[id] = re.compile(regex, re.IGNORECASE | re.VERBOSE | re.DOTALL)
