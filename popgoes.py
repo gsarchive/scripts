@@ -50,13 +50,13 @@ def report_with_context(t, v, c):
 	_old_excepthook(t, v, c)
 sys.excepthook = report_with_context
 
-def find_popup_args(expr):
+def find_func_args(expr, fnprefix):
 	"""Recursively scan an expression for an openPop* call"""
 	match expr:
 		case esprima.nodes.ExpressionStatement(expression=e):
-			return find_popup_args(e)
+			return find_func_args(e, fnprefix)
 		case esprima.nodes.CallExpression(callee=callee, arguments=args):
-			if callee.type == "Identifier" and callee.name.startswith("openPop"):
+			if callee.type == "Identifier" and callee.name.startswith(fnprefix):
 				return callee.name, [
 					# TODO: Understand other types of arg
 					# For now assumes type == "Literal"
@@ -66,7 +66,7 @@ def find_popup_args(expr):
 		case esprima.nodes.Node(body=[*body]):
 			# Anything that has a body, scan for any matching things
 			for elem in body:
-				if a := find_popup_args(elem): return a
+				if a := find_func_args(elem, fnprefix): return a
 	# Otherwise, we got nuffin'.
 	return None, None
 
@@ -78,12 +78,30 @@ def classify_link(elem, js):
 	if js == "window.close()": return info | {"type": "Close window"}
 	with ExceptionContext("JS code", js):
 		expr = esprima.parse(js)
-	fn, args = find_popup_args(expr)
+	fn, args = find_func_args(expr, "openPop")
 	if fn:
 		return info | {"type": fn}
 	return info | {"type": "Unknown"}
 
+def classify_hover(elem, js):
+	if js == "return setStatus('')": return {"type": "Status - clear"}
+	# esprima doesn't like a bare return statement. I'm not entirely sure how this is meant
+	# to be interpreted, but I'm wrapping it in a special function and then getting the body
+	# of that function.
+	with ExceptionContext("JS code", js):
+		module = esprima.parse("function _probe() {" + js + "}")
+		assert module.type == "Program"
+		assert module.body[0].type == "FunctionDeclaration"
+		expr = module.body[0].body # The body of the function we just defined
+	fn, args = find_func_args(expr, "setStatus")
+	if fn:
+		if args[0] == "": return {"type": "Status - clear"}
+		if args[0] == "Click to enlarge picture.": return {"type": "Status - enlarge"}
+		return {"type": "Status - other"}
+	return {"type": "Unknown"}
+
 stats = collections.Counter()
+hovers = collections.Counter()
 def classify(fn):
 	info = { }
 	with open(fn, "rb") as f: blob = f.read()
@@ -102,6 +120,12 @@ def classify(fn):
 				if ty not in stats:
 					print(ty, fn)
 				stats[ty] += 1
+			for attr in ("onmouseover", "onmouseout"):
+				if attr not in elem.attrs: continue
+				info = classify_hover(elem, elem[attr])
+				if info["type"] not in hovers:
+					print("Hover:", info["type"], fn)
+				hovers[info["type"]] += 1
 
 for fn in sys.argv[1:]:
 	if os.path.exists(fn):
@@ -122,3 +146,4 @@ with open("weasels.log", "w") as log:
 				print(stats.total(), stats)
 				next_report = (stats.total() // 100 + 1) * 100
 print(stats.total(), stats)
+print(hovers.total(), hovers)
