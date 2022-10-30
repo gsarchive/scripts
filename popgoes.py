@@ -147,7 +147,6 @@ for fn in sys.argv[1:]:
 		print(stats.total(), stats)
 		sys.exit(0)
 
-next_report = 100
 with open("weasels.log", "w") as log:
 	for root, dirs, files in os.walk(root):
 		if "backups" in dirs: dirs.remove("backups")
@@ -156,8 +155,5 @@ with open("weasels.log", "w") as log:
 			fn = os.path.join(root, file)
 			with ExceptionContext("File name", fn):
 				classify(fn)
-			if stats.total() > next_report:
-				print(stats.total(), stats)
-				next_report = (stats.total() // 100 + 1) * 100
 print(stats.total(), stats)
 print(hovers.total(), hovers)
