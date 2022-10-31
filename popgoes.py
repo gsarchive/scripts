@@ -37,7 +37,6 @@ root = "/home/rosuav/gsarchive/clone"
 
 JS_FORMATS = {
 	"*Blank": "^$",
-	"*Semicolon": "^;$", # Practically blank, but show it separately for stats
 	"Close window": r"^window.close\(\)$",
 	"*Status - clear": r"^(return)?\s*setStatus\(''\)$",
 	"*Status - enlarge": r"^(return)?\s*setStatus\('Click\s*to\s*enlarge\s*picture.'\)$",
