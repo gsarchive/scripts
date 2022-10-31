@@ -17,6 +17,7 @@
 # Eventually, write back with changes:
 # - Void links get excised
 # - onmouseover/onmouseout setStatus and className get dropped
+# - If class="off", del elem["class"]
 # - openPopImg --> <a href=image title=title class=popup>
 # - openPopWin --> ???
 # - Otherwise retain as-is
@@ -35,13 +36,13 @@ import esprima # ImportError? pip install -r requirements.txt
 root = "/home/rosuav/gsarchive/clone"
 
 JS_FORMATS = {
-	"Blank": "^$",
-	"Semicolon": "^;$", # Practically blank, but show it separately for stats
+	"*Blank": "^$",
+	"*Semicolon": "^;$", # Practically blank, but show it separately for stats
 	"Close window": r"^window.close\(\)$",
-	"Status - clear": r"^(return)?\s*setStatus\(''\)$",
-	"Status - enlarge": r"^(return)?\s*setStatus\('Click\s*to\s*enlarge\s*picture.'\)$",
-	"Status - other": r"^(return)?\s*setStatus\(.*\)$",
-	"Hover CSS class": r"^this\.className\s*=\s*'(on|off)';?$",
+	"*Status - clear": r"^(return)?\s*setStatus\(''\)$",
+	"*Status - enlarge": r"^(return)?\s*setStatus\('Click\s*to\s*enlarge\s*picture.'\)$",
+	"*Status - other": r"^(return)?\s*setStatus\(.*\)$",
+	"*Hover CSS class": r"^this\.className\s*=\s*'(on|off)';?$",
 }
 for id, regex in JS_FORMATS.items():
 	JS_FORMATS[id] = re.compile(regex, re.IGNORECASE | re.VERBOSE | re.DOTALL)
@@ -87,7 +88,6 @@ def find_func_args(expr, fnprefix):
 
 def classify_link(elem, js):
 	info = {"attrs": ",".join(sorted(elem.attrs))}
-	if not elem.contents and not elem.text: info["void"] = True # Unclickable as it has no content
 	for id, regex in JS_FORMATS.items():
 		if regex.match(js): return info | {"type": id}
 	with ExceptionContext("JS code", js):
@@ -120,8 +120,15 @@ def classify(fn):
 	info = { }
 	with open(fn, "rb") as f: blob = f.read()
 	soup = BeautifulSoup(blob, "html5lib")
+	changed = False
 	for elem in soup.find_all("a", href=True):
 		with ExceptionContext("Element", elem):
+			if not elem.contents and not elem.text:
+				# Unclickable as it has no content
+				elem.replace_with("")
+				changed = True
+				stats["Void"] += 1
+				continue
 			p = urlparse(elem["href"])
 			if p.scheme.lower() == "javascript":
 				# When a question mark appears in the JS, browsers actually interpret it
@@ -130,16 +137,29 @@ def classify(fn):
 				js = p.path
 				if p.query: js += "?" + p.query
 				info = classify_link(elem, js)
-				ty = "Void" if "Void" in stats else info["type"] + " [" + info["attrs"] + "]"
+				ty = info["type"] + " [" + info["attrs"] + "]"
 				if ty not in stats:
 					print(ty, fn)
 				stats[ty] += 1
 			for attr in ("onclick", "onmouseover", "onmouseout"):
 				if attr not in elem.attrs: continue
 				info = classify_hover(elem, elem[attr])
-				if info["type"] not in hovers:
-					print("Hover:", info["type"], fn)
+				if info["type"] == "Unknown":
+					print("Unknown JS:", fn, elem[attr])
+				elif info["type"] not in hovers:
+					print("JS:", info["type"], fn)
 				hovers[info["type"]] += 1
+				if info["type"][0] == "*":
+					# Unnecessary JavaScript - take it out.
+					del elem[attr]
+					changed = True
+			if "class" in elem.attrs and elem["class"] in ("", "off", "on"):
+				del elem["class"]
+				changed = True
+	if changed:
+		data = soup.encode(formatter="html5")
+		with open(fn, "wb") as f: f.write(data)
+		stats["Changed"] += 1
 
 for fn in sys.argv[1:]:
 	if os.path.exists(fn):
