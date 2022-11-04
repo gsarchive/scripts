@@ -31,6 +31,7 @@
 import os
 import sys
 import re
+import hashlib
 import collections
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin, unquote, ParseResult
@@ -117,13 +118,16 @@ def classify_hover(elem, js):
 	if fn: return {"type": fn}
 	return {"type": "Unknown", "js": str(expr)}
 
+unique_scripts = open("popgoes.log", "w")
+scripts_seen = collections.Counter()
+
 stats = collections.Counter()
 hovers = collections.Counter()
 def classify(fn):
 	info = { }
 	with open(fn, "rb") as f: blob = f.read()
 	soup = BeautifulSoup(blob, "html5lib")
-	changed = False
+	changed = need_gsa_script = False
 	for elem in soup.find_all("a", href=True):
 		with ExceptionContext("Element", elem):
 			if not elem.contents and not elem.text:
@@ -131,6 +135,18 @@ def classify(fn):
 				elem.replace_with("")
 				changed = True
 				stats["Void"] += 1
+				continue
+			if "data-lightbox" in elem.attrs or elem.get("rel") == "lightbox":
+				if "data-lightbox" in elem.attrs:
+					stats["data-lightbox"] += 1
+					del elem["data-lightbox"]
+				if elem.get("rel") == "lightbox":
+					stats["rel=lightbox"] += 1
+					del elem["rel"]
+				classes = elem.get("class")
+				if classes is None: elem["class"] = "popup"
+				elif "popup" not in classes: classes.append("popup")
+				changed = need_gsa_script = True
 				continue
 			p = urlparse(elem["href"])
 			if p.scheme.lower() == "javascript":
@@ -159,6 +175,33 @@ def classify(fn):
 			if "class" in elem.attrs and elem["class"] in ("", "off", "on"):
 				del elem["class"]
 				changed = True
+	have_gsa_script = False
+	for elem in soup.find_all("script"):
+		if elem.get("src") == "/gsarchive.js":
+			have_gsa_script = True
+			continue
+		script = str(elem)
+		leave = ("MM_reloadPage", "MM_preloadImages", "window.opener.pic",
+			"AC_RunActiveContent", "AC_FL_RunContent", "PopUpWin", # All to do with Flash. It needs to go.
+			"google-analytics", "jquery-")
+		logme = ("openPopImg", "openPopWin", "getLocation") # getLocation is a dep of openPopWin
+		removeme = ("barts1000", "lightbox")
+		for kwd in leave + logme + removeme:
+			if kwd in script: break
+		else: continue
+		if kwd in leave: continue # Uninteresting for now
+		if kwd in removeme:
+			elem.replaceWith("")
+			changed = True
+			script = "removed" # Log the script group as a single unit
+		hash = kwd + "-" + hashlib.sha1(script.encode()).hexdigest()
+		if hash not in scripts_seen:
+			print("=== %s === %s" % (hash, fn), file=unique_scripts)
+			print(script, file=unique_scripts)
+			print("=== ===\n", file=unique_scripts)
+		scripts_seen[hash] += 1
+	if need_gsa_script and not have_gsa_script:
+		soup.head.append(BeautifulSoup('<script src="/gsarchive.js" type=module></script>', "html.parser"))
 	if changed:
 		data = soup.encode(formatter="html5")
 		with open(fn, "wb") as f: f.write(data)
@@ -180,3 +223,4 @@ with open("weasels.log", "w") as log:
 				classify(fn)
 print(stats.total(), stats)
 print(hovers.total(), hovers)
+print(scripts_seen.total(), scripts_seen)
