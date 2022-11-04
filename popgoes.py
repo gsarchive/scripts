@@ -14,9 +14,9 @@
 # - MM_nbGroup
 # - Other/Unknown
 #
-# TODO: Also classify <script> elements. Most likely, there will be a small
-# number of unique texts across the entire site. Enumerate them. Show their
-# language attributes as extra clues to their uselessness.
+# Also classifies <script> elements. Those relating to the lightbox script
+# are removed and replaced with <a class=popup>. Junk and broken scripts are
+# simply deleted. So far, openPopImg and openPopWin are kept.
 #
 # Eventually, write back with changes:
 # - Void links get excised
@@ -183,7 +183,7 @@ def classify(fn):
 		script = str(elem)
 		leave = ("MM_reloadPage", "MM_preloadImages", "window.opener.pic",
 			"AC_RunActiveContent", "AC_FL_RunContent", "PopUpWin", # All to do with Flash. It needs to go.
-			"google-analytics", "jquery-")
+			"google-analytics")
 		logme = ("openPopImg", "openPopWin", "getLocation") # getLocation is a dep of openPopWin
 		removeme = ("barts1000", "lightbox")
 		for kwd in leave + logme + removeme:
@@ -191,7 +191,7 @@ def classify(fn):
 		else: continue
 		if kwd in leave: continue # Uninteresting for now
 		if kwd in removeme:
-			elem.replaceWith("")
+			elem.replace_with("")
 			changed = True
 			script = "removed" # Log the script group as a single unit
 		hash = kwd + "-" + hashlib.sha1(script.encode()).hexdigest()
@@ -200,6 +200,10 @@ def classify(fn):
 			print(script, file=unique_scripts)
 			print("=== ===\n", file=unique_scripts)
 		scripts_seen[hash] += 1
+	for elem in soup.find_all("link", {"rel": "stylesheet", "href": True}):
+		if "lightbox" in elem["href"]:
+			elem.replace_with("")
+			changed = True
 	if need_gsa_script and not have_gsa_script:
 		soup.head.append(BeautifulSoup('<script src="/gsarchive.js" type=module></script>', "html.parser"))
 	if changed:
