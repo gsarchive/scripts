@@ -7,12 +7,16 @@
 # - openPopWin(url, width, height[, features[, width, height]])
 # - Other/Unknown
 #
-# TODO: Classify the onmouseover and onmouseout attributes, if present
+# Also classifies the onmouseover and onmouseout attributes, if present
 # - setStatus() - delete this, the HTML spec requires that it be useless
 # - this.className = "on/off" - delete this as the CSS styles have now been
 #   applied to the class instead
 # - MM_nbGroup
 # - Other/Unknown
+#
+# TODO: Also classify <script> elements. Most likely, there will be a small
+# number of unique texts across the entire site. Enumerate them. Show their
+# language attributes as extra clues to their uselessness.
 #
 # Eventually, write back with changes:
 # - Void links get excised
