@@ -25,3 +25,10 @@ To recreate the clone directory:
     On the client:
     $ mount live
     $ rsync -Pav gsarchiv:public_html/ --files-from live/backups/htmlfiles.txt clone/
+
+TODO:
+
+* Go through all the MM_ scripts (see popgoes.py for classification) and
+  further subcategorize them, with a view to replacing them with simple CSS
+  hover directives. They appear to primarily (maybe exclusively?) replace one
+  image with another when the mouse hovers over a button.
