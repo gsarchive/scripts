@@ -217,14 +217,13 @@ for fn in sys.argv[1:]:
 		print(stats.total(), stats)
 		sys.exit(0)
 
-with open("weasels.log", "w") as log:
-	for root, dirs, files in os.walk(root):
-		if "backups" in dirs: dirs.remove("backups")
-		for file in files:
-			if not file.endswith(".html") and not file.endswith(".htm"): continue
-			fn = os.path.join(root, file)
-			with ExceptionContext("File name", fn):
-				classify(fn)
+for root, dirs, files in os.walk(root):
+	if "backups" in dirs: dirs.remove("backups")
+	for file in files:
+		if not file.endswith(".html") and not file.endswith(".htm"): continue
+		fn = os.path.join(root, file)
+		with ExceptionContext("File name", fn):
+			classify(fn)
 print(stats.total(), stats)
 print(hovers.total(), hovers)
 print(scripts_seen.total(), scripts_seen)
