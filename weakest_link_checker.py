@@ -114,7 +114,6 @@ def intlink(type, context, url, extra):
 		p = root + extra[0]
 		fn = os.path.basename(p).casefold()
 		try:
-			print(p)
 			for f in os.listdir(os.path.dirname(p)):
 				if f.casefold() == fn: fixed = f
 		except FileNotFoundError:
@@ -137,6 +136,24 @@ def locallink(type, context, url, extra):
 			"file:///C:/Users/User/Desktop/G&S%20Archive"):
 		if url.startswith(base):
 			autofix(type, context, url, [url.removeprefix(base)])
+
+@handler("Unscanned file")
+def unscanned(type, context, url, extra):
+	if "/buttons/" in url:
+		# A lot of the /buttons/ directories contain some files that are used,
+		# but others that aren't. They're duplicates anyway. Get rid of them.
+		if os.path.exists(root + url):
+			print("REMOVE", root + url)
+			os.unlink(root + url)
+
+@handler("Unscanned duplicate file")
+def unscanned_dupe(type, context, url, extra):
+	if url.replace("/midi/", "/") == extra[0].replace("/midi/", "/"):
+		# Duplicate file, one in the midi directory, one not
+		if os.path.exists(root + url):
+			print("REMOVE", root + url)
+			os.unlink(root + url)
+
 try:
 	with open("weakest_link.log") as log:
 		for line in log:
