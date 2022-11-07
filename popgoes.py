@@ -256,8 +256,8 @@ print(stats.total(), stats)
 print(hovers.total(), hovers)
 print(scripts_seen.total(), scripts_seen)
 # Show all comments that get featured more than once; group the rest into "Other"
-for c in list(comments):
-	if comments[c] == 1:
-		comments["Other"] += 1
-		del comments[c]
-print(comments)
+#for c in list(comments):
+#	if comments[c] == 1:
+#		comments["Other"] += 1
+#		del comments[c]
+#print(comments)
