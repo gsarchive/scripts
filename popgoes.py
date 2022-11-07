@@ -18,12 +18,12 @@
 # are removed and replaced with <a class=popup>. Junk and broken scripts are
 # simply deleted. So far, openPopImg and openPopWin are kept.
 #
-# Eventually, write back with changes:
+# Writes back with changes:
 # - Void links get excised
 # - onmouseover/onmouseout setStatus and className get dropped
 # - If class="off", del elem["class"]
 # - openPopImg --> <a href=image title=title class=popup>
-# - openPopWin --> ???
+# - openPopWin --> ??? not changed as yet
 # - Otherwise retain as-is
 # If adding any class=popup, ensure presence of both CSS and JS in head
 # (see copywrong.py write_back())
@@ -222,7 +222,7 @@ def classify(fn):
 		if "lightbox" in elem["href"]:
 			elem.replace_with("")
 			changed = True
-	# Clean up the bracketing comments from popup images
+	# Clean up the bracketing comments from popup images and other junk
 	for elem in soup.find_all(text=lambda text: isinstance(text, Comment)):
 		if re.match("^\s*URL:", elem.string, re.I): elem.string = "diamond.idbsu.edu" # hack out the URLs
 		for removeme in ("Pop-up Images Script", "diamond.idbsu.edu", "Fireworks MX 2004 Dreamweaver",
