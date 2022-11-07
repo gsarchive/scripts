@@ -21,7 +21,7 @@ To recreate the clone directory:
 
     On the server:
     $ cd public_html
-    $ find -type f -name \*.htm* >backups/htmlfiles.txt
+    $ find -type f -name \*.htm* | grep -v '^./backups/' >backups/htmlfiles.txt
     On the client:
     $ mount live
     $ rsync -Pav gsarchiv:public_html/ --files-from live/backups/htmlfiles.txt clone/
