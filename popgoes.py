@@ -33,7 +33,7 @@ import sys
 import re
 import hashlib
 import collections
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Comment
 from urllib.parse import urlparse, urljoin, unquote, ParseResult
 import esprima # ImportError? pip install -r requirements.txt
 
@@ -42,7 +42,9 @@ root = "/home/rosuav/gsarchive/clone"
 
 JS_FORMATS = {
 	"*Blank": "^$",
-	"Close window": r"^window.close\(\)$",
+	"Close window": r"^(window.close\(\)|closePopWin\(\))$",
+	"Fabricate": r"^fabricatePage\(\)$", # Only on pimg.htm
+	"Slideshow": r"^(rotate\(\)|runSlideShow\(\))$",
 	"*Status - clear": r"^(return)?\s*setStatus\(''\)$",
 	"*Status - enlarge": r"^(return)?\s*setStatus\('Click\s*to\s*enlarge\s*picture.'\)$",
 	"*Status - other": r"^(return)?\s*setStatus\(.*\)$",
@@ -98,7 +100,7 @@ def classify_link(elem, js):
 		expr = esprima.parse(js)
 	# TODO: Recognize if there's any other code here (unlikely but possible)
 	fn, args = find_func_args(expr, "openPop")
-	if fn: return info | {"type": fn}
+	if fn: return info | {"type": fn, "args": args}
 	return info | {"type": "Unknown"}
 
 def classify_hover(elem, js):
@@ -112,22 +114,43 @@ def classify_hover(elem, js):
 		assert module.type == "Program"
 		assert module.body[0].type == "FunctionDeclaration"
 		expr = module.body[0].body # The body of the function we just defined
-	fn, args = find_func_args(expr, "MM_nbGroup")
-	if fn: return {"type": fn}
-	fn, args = find_func_args(expr, "MM_swap")
-	if fn: return {"type": fn}
+	for findme in ("MM_nbGroup", "MM_swap", "*MM_preloadImages", "*closePopImg"):
+		fn, args = find_func_args(expr, findme.lstrip("*"))
+		if fn: return {"type": findme}
 	return {"type": "Unknown", "js": str(expr)}
+
+def make_popup(elem):
+	classes = elem.get("class")
+	if classes is None: elem["class"] = "popup"
+	elif "popup" not in classes: classes.append("popup")
 
 unique_scripts = open("popgoes.log", "w")
 scripts_seen = collections.Counter()
 
 stats = collections.Counter()
 hovers = collections.Counter()
+comments = collections.Counter()
+
+def check_hover(elem, *attrs):
+	for attr in attrs:
+		if attr not in elem.attrs: continue
+		info = classify_hover(elem, elem[attr])
+		if info["type"] == "Unknown":
+			print("Unknown JS:", fn, elem[attr])
+		elif info["type"] not in hovers:
+			print("JS:", info["type"], fn)
+		hovers[info["type"]] += 1
+		if info["type"][0] == "*":
+			# Unnecessary JavaScript - take it out.
+			del elem[attr]
+			return True
+
 def classify(fn):
 	info = { }
 	with open(fn, "rb") as f: blob = f.read()
 	soup = BeautifulSoup(blob, "html5lib")
 	changed = need_gsa_script = False
+	if soup.body and check_hover(soup.body, "onload", "onunload"): changed = True
 	for elem in soup.find_all("a", href=True):
 		with ExceptionContext("Element", elem):
 			if not elem.contents and not elem.text:
@@ -143,9 +166,7 @@ def classify(fn):
 				if elem.get("rel") == "lightbox":
 					stats["rel=lightbox"] += 1
 					del elem["rel"]
-				classes = elem.get("class")
-				if classes is None: elem["class"] = "popup"
-				elif "popup" not in classes: classes.append("popup")
+				make_popup(elem)
 				changed = need_gsa_script = True
 				continue
 			p = urlparse(elem["href"])
@@ -156,22 +177,20 @@ def classify(fn):
 				js = p.path
 				if p.query: js += "?" + p.query
 				info = classify_link(elem, js)
-				ty = info["type"] + " [" + info["attrs"] + "]"
+				ty = info["type"]
 				if ty not in stats:
 					print(ty, fn)
+				if ty == "openPopImg":
+					# Rewrite this link as a class=popup
+					changed = need_gsa_script = True
+					elem["href"] = info["args"][0]
+					if len(info["args"]) > 1:
+						elem["title"] = info["args"][1]
+					# There might be 4 arguments (adding a width and height), but
+					# since class=popup doesn't use those, we can ignore them.
+					make_popup(elem)
 				stats[ty] += 1
-			for attr in ("onclick", "onmouseover", "onmouseout"):
-				if attr not in elem.attrs: continue
-				info = classify_hover(elem, elem[attr])
-				if info["type"] == "Unknown":
-					print("Unknown JS:", fn, elem[attr])
-				elif info["type"] not in hovers:
-					print("JS:", info["type"], fn)
-				hovers[info["type"]] += 1
-				if info["type"][0] == "*":
-					# Unnecessary JavaScript - take it out.
-					del elem[attr]
-					changed = True
+			if check_hover(elem, "onclick", "onmouseover", "onmouseout"): changed = True
 			if "class" in elem.attrs and elem["class"] in ("", "off", "on"):
 				del elem["class"]
 				changed = True
@@ -181,11 +200,10 @@ def classify(fn):
 			have_gsa_script = True
 			continue
 		script = str(elem)
-		leave = ("MM_reloadPage", "MM_preloadImages", "window.opener.pic",
-			"AC_RunActiveContent", "AC_FL_RunContent", "PopUpWin", # All to do with Flash. It needs to go.
-			"google-analytics")
-		logme = ("openPopImg", "openPopWin", "getLocation") # getLocation is a dep of openPopWin
-		removeme = ("barts1000", "lightbox")
+		leave = ("MM_reloadPage", "google-analytics",
+			"AC_RunActiveContent", "AC_FL_RunContent", "PopUpWin") # All to do with Flash. It needs to go.
+		logme = ("openPopWin", "getLocation", "window.opener.pic") # getLocation is a dep of openPopWin
+		removeme = ("openPopImg", "MM_preloadImages", "barts1000", "lightbox")
 		for kwd in leave + logme + removeme:
 			if kwd in script: break
 		else: continue
@@ -204,6 +222,17 @@ def classify(fn):
 		if "lightbox" in elem["href"]:
 			elem.replace_with("")
 			changed = True
+	# Clean up the bracketing comments from popup images
+	for elem in soup.find_all(text=lambda text: isinstance(text, Comment)):
+		if re.match("^\s*URL:", elem.string, re.I): elem.string = "diamond.idbsu.edu" # hack out the URLs
+		for removeme in ("Pop-up Images Script", "diamond.idbsu.edu", "Fireworks MX 2004 Dreamweaver",
+				"#EndDate"):
+			if removeme in elem.string:
+				elem.replace_with("")
+				changed = True
+				comments["(removed)"] += 1
+				break
+		else: comments[elem.string] += 1
 	if need_gsa_script and not have_gsa_script:
 		soup.head.append(BeautifulSoup('<script src="/gsarchive.js" type=module></script>', "html.parser"))
 	if changed:
@@ -214,16 +243,21 @@ def classify(fn):
 for fn in sys.argv[1:]:
 	if os.path.exists(fn):
 		with ExceptionContext("File name", fn): classify(fn)
-		print(stats.total(), stats)
-		sys.exit(0)
-
-for root, dirs, files in os.walk(root):
-	if "backups" in dirs: dirs.remove("backups")
-	for file in files:
-		if not file.endswith(".html") and not file.endswith(".htm"): continue
-		fn = os.path.join(root, file)
-		with ExceptionContext("File name", fn):
-			classify(fn)
+		break
+else:
+	for root, dirs, files in os.walk(root):
+		if "backups" in dirs: dirs.remove("backups")
+		for file in files:
+			if not file.endswith(".html") and not file.endswith(".htm"): continue
+			fn = os.path.join(root, file)
+			with ExceptionContext("File name", fn):
+				classify(fn)
 print(stats.total(), stats)
 print(hovers.total(), hovers)
 print(scripts_seen.total(), scripts_seen)
+# Show all comments that get featured more than once; group the rest into "Other"
+for c in list(comments):
+	if comments[c] == 1:
+		comments["Other"] += 1
+		del comments[c]
+print(comments)
