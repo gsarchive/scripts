@@ -107,6 +107,22 @@ def intlink(type, context, url, extra):
 		# Some URLs have been written with the wrong slash in them.
 		fixed = url.replace("\\", "/")
 
+	else:
+		# Some references have the wrong letter case. It's hard to be sure whether
+		# the ref is right and the file wrong or the other way around, but since
+		# it's safer to change a link than a file, we'll go with that.
+		p = root + extra[0]
+		fn = os.path.basename(p).casefold()
+		try:
+			print(p)
+			for f in os.listdir(os.path.dirname(p)):
+				if f.casefold() == fn: fixed = f
+		except FileNotFoundError:
+			pass # Neither a true match nor a false one. Can't be autofixed.
+		if fixed:
+			# Reconstruct the original (possibly relative) URL
+			fixed = os.path.join(os.path.dirname(url), fixed)
+
 	if not fixed: return # Sometimes a thing gets broke, can't be fixed.
 	# But if it can, and if the file exists (this only fixes internal links), go for it.
 	if os.path.exists(root + urllib.parse.urljoin(context, fixed)):
