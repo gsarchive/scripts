@@ -115,7 +115,7 @@ def classify_hover(elem, js):
 		assert module.type == "Program"
 		assert module.body[0].type == "FunctionDeclaration"
 		expr = module.body[0].body # The body of the function we just defined
-	for findme in ("MM_nbGroup", "MM_swap", "*MM_preloadImages", "*closePopImg"):
+	for findme in ("*MM_nbGroup", "*MM_swap", "*MM_preloadImages", "*closePopImg"):
 		fn, args = find_func_args(expr, findme.lstrip("*"))
 		if fn: return {"type": findme}
 	return {"type": "Unknown", "js": str(expr)}
@@ -204,9 +204,9 @@ def classify(fn):
 			have_gsa_script = True
 			continue
 		script = str(elem)
-		leave = ("MM_reloadPage", "google-analytics",
+		leave = ("google-analytics",
 			"AC_RunActiveContent", "AC_FL_RunContent", "PopUpWin") # All to do with Flash. It needs to go.
-		logme = ("window.opener.pic",)
+		logme = ("MM_reloadPage", "window.opener.pic")
 		removeme = ("openPopImg", "openPopWin", "getLocation", # getLocation is a dep of openPopWin
 			"MM_preloadImages", "barts1000", "lightbox")
 		for kwd in leave + logme + removeme:
