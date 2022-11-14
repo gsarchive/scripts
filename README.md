@@ -28,10 +28,6 @@ To recreate the clone directory:
 
 TODO:
 
-* Go through all the MM_ scripts (see popgoes.py for classification) and
-  further subcategorize them, with a view to replacing them with simple CSS
-  hover directives. They appear to primarily (maybe exclusively?) replace one
-  image with another when the mouse hovers over a button.
 * If you iframe an image, the image's native size is ignored and the iframe has
   a default size. This is unideal, ergo we stick to an IMG element when the popup
   is a simple image. Would be nice to unify and to have some sort of user zoom.
