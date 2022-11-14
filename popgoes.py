@@ -133,6 +133,7 @@ hovers = collections.Counter()
 comments = collections.Counter()
 
 def check_hover(elem, *attrs):
+	ret = False
 	for attr in attrs:
 		if attr not in elem.attrs: continue
 		info = classify_hover(elem, elem[attr])
@@ -144,7 +145,8 @@ def check_hover(elem, *attrs):
 		if info["type"][0] == "*":
 			# Unnecessary JavaScript - take it out.
 			del elem[attr]
-			return True
+			ret = True
+	return ret
 
 def classify(fn):
 	info = { }
