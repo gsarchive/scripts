@@ -42,8 +42,9 @@ root = "/home/rosuav/gsarchive/clone"
 
 JS_FORMATS = {
 	"*Blank": "^$",
-	"Close window": r"^(window.close\(\)|closePopWin\(\))$",
-	"Fabricate": r"^fabricatePage\(\)$", # Only on pimg.htm
+	"Close window": r"^window.close\(\)$",
+	"*Close popup": r"^closePopWin\(\)$",
+	"Fabricate": r"^fabricatePage\(\)$", # Only on pimg.htm (now deleted everywhere)
 	"Slideshow": r"^(rotate\(\)|runSlideShow\(\))$",
 	"*Status - clear": r"^(return)?\s*setStatus\(''\)$",
 	"*Status - enlarge": r"^(return)?\s*setStatus\('Click\s*to\s*enlarge\s*picture.'\)$",
@@ -180,14 +181,17 @@ def classify(fn):
 				ty = info["type"]
 				if ty not in stats:
 					print(ty, fn)
-				if ty == "openPopImg":
+				if ty == "openPopImg" or ty == "openPopWin":
 					# Rewrite this link as a class=popup
 					changed = need_gsa_script = True
-					elem["href"] = info["args"][0]
-					if len(info["args"]) > 1:
-						elem["title"] = info["args"][1]
-					# There might be 4 arguments (adding a width and height), but
-					# since class=popup doesn't use those, we can ignore them.
+					args = info["args"]
+					elem["href"], *args = args
+					# Popup images get their captions next.
+					if ty == "openPopImg" and args: elem["title"], *args = args
+					# There might be two more arguments (adding a width and height).
+					# Images don't really care, but popup HTML pages do.
+					if args: elem["data-width"], *args = args
+					if args: elem["data-height"], *args = args
 					make_popup(elem)
 				stats[ty] += 1
 			if check_hover(elem, "onclick", "onmouseover", "onmouseout"): changed = True
@@ -202,8 +206,9 @@ def classify(fn):
 		script = str(elem)
 		leave = ("MM_reloadPage", "google-analytics",
 			"AC_RunActiveContent", "AC_FL_RunContent", "PopUpWin") # All to do with Flash. It needs to go.
-		logme = ("openPopWin", "getLocation", "window.opener.pic") # getLocation is a dep of openPopWin
-		removeme = ("openPopImg", "MM_preloadImages", "barts1000", "lightbox")
+		logme = ("window.opener.pic",)
+		removeme = ("openPopImg", "openPopWin", "getLocation", # getLocation is a dep of openPopWin
+			"MM_preloadImages", "barts1000", "lightbox")
 		for kwd in leave + logme + removeme:
 			if kwd in script: break
 		else: continue
