@@ -52,7 +52,7 @@ def classify(fn):
 	info = { }
 	with open(fn, "rb") as f: blob = f.read()
 	soup = BeautifulSoup(blob, "html5lib")
-	changed = False
+	changed = need_gsa_css = False
 	for table in soup.find_all("table"):
 		with ExceptionContext("Table", table):
 			rows = []
@@ -74,34 +74,47 @@ def classify(fn):
 			# So, what's worth reporting?
 			# A table containing a single row with a single cell in it is notable.
 			if rows == [1]:
+				# Particularly if it has a caption, implying that it is really a figure in disguise.
 				if caption:
-					last = caption.get("align") == "bottom" # figcaption should be last instead of first
+					changed = need_gsa_css = True
+					# Generate some new HTML elements and patch in the necessary information.
+					# If the table caption is aligned bottom, the figure caption goes at the end,
+					# rather than at the beginning. (We're ignoring left/right captions, which
+					# don't occur on the G&S Archive.)
+					figure = [
+						"""<figure class="inlinefig"><figcaption></figcaption><div></div></figure>""",
+						"""<figure class="inlinefig"><div></div><figcaption></figcaption></figure>""",
+					][caption.get("align") == "bottom"]
+					figure = BeautifulSoup(figure, "html.parser").figure
 					# Check whether it's left or right floated (or neither)
 					side = table.get("align", "").lower()
-					if side not in ("left", "right"): side = ""
+					if side in ("left", "right"): figure["class"] += [side]
 					# Check cellpadding (needs to become pixel padding on the pictureframe)
 					# The default is 1px, but for consistency, we'll just have either
 					# none or 5px. Since there's currently a big mess, we take any padding
 					# of at least 3px and make it 5px (even if it was 8px), otherwise none.
-					padding = int(table.get("cellpadding", "1")) >= 3
-					# Retain CSS classes on table (becomes div) and caption (becomes figcaption)
-					tbcls = table.get("class", [])
-					capcls = caption.get("class", [])
-					# Retain any element styles on the table (becomes figure)
-					tbsty = table.get("style")
-					report(fn, "Figure table:",
-						last, side, padding, tbcls, capcls,
-						tbsty,
-						#repr("".join(str(c) for c in data.children)),
-						#repr("".join(str(c) for c in caption.children)),
-					)
-					stats["FigLast %s" % last] += 1
-					stats["FigSide %s" % side] += 1
-					stats["FigPadding %s" % padding] += 1
-				#else: print(fn, "Table has only one cell:", repr("".join(str(c) for c in data.children)))
-			#elif caption:
-			#	print(fn, "Table caption:", repr("".join(str(c) for c in table.caption.children)))
+					padding = int(table.get("cellpadding", "1"))
+					if padding >= 3: figure["class"] += ["padded"]
+					# Retain any element styles from the table on the figure
+					if tbsty := table.get("style"): figure["style"] = tbsty
+					# Retain CSS classes from table on the inner div, and caption similarly
+					figure.div["class"] = table.get("class", [])
+					figure.figcaption["class"] = caption.get("class", [])
+					# What was in the table cell now goes in the div; caption is still caption.
+					figure.div.extend(data.contents)
+					figure.figcaption.extend(caption.contents)
+					# Perfect. Let's swap that in!
+					table.replace_with(figure)
+					stats["FiguresChanged"] += 1
+				else:
+					stats["Single-cell"] += 1
+					report(fn, "Table has only one cell") # "".join(str(c) for c in data.children)
+			elif caption:
+				stats["Caption"] += 1
+				report(fn, "Table caption:", "".join(str(c) for c in table.caption.children))
 	if changed:
+		if need_gsa_css and not soup.find("link", href="/styles/gsarchive.css"):
+			soup.head.append(BeautifulSoup('<link href="/styles/gsarchive.css" rel="stylesheet" type="text/css">', "html.parser"))
 		data = soup.encode(formatter="html5")
 		with open(fn, "wb") as f: f.write(data)
 		stats["Changed"] += 1
