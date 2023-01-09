@@ -1,11 +1,17 @@
-# Find all files where a table is inside another table.
-# When tables are used for formatting, this is very common; when they're used for
-# actual tabular data, it is quite rare.
-# For each nested table, show the row and column count for both outer and inner.
-# In some cases, the outer table should be replaced with a <main> (as its sole purpose is
-# a curved border); in others, it's the inner table which is the pure-formatting element.
+# Find all files where a table is used purely for formatting.
+# For every table, identify its contents, and match against some known patterns.
+# 1) Single row with single cell, containing an image or text: should become boxed text
+# 1a) As above but has a <caption>: should become <figure> with <figcaption>
+# 2) Three rows:
+#    a) Corner left + Background + Corner Right
+#    b) Empty with background
+#    c) Gold, cream, CONTENT, cream, gold
+#    Should become <main>
+# 3) "Other"
 
+import json
 import os
+import pprint
 import sys
 import re
 import hashlib
@@ -35,6 +41,11 @@ def report_with_context(t, v, c):
 	_old_excepthook(t, v, c)
 sys.excepthook = report_with_context
 
+logfile = open("tables.log", "w")
+def report(*msg):
+	print(json.dumps(msg), file=logfile)
+	print(*msg)
+
 stats = collections.Counter()
 
 def classify(fn):
@@ -42,31 +53,54 @@ def classify(fn):
 	with open(fn, "rb") as f: blob = f.read()
 	soup = BeautifulSoup(blob, "html5lib")
 	changed = False
-	for elem in soup.find_all("table"):
-		with ExceptionContext("Table", elem):
-			parent = elem.find_parent("table")
-			if not parent: continue # Table not in a table, nothing to fix
-			with ExceptionContext("Contained in", parent):
-				# This is inefficient; for every table-in-table, it fully
-				# recalculates the dimensions of both tables. It should be
-				# possible to recall the outer table's dimensions if we've
-				# already seen it. Whatever.
-				container = []; child = []
-				for tr in parent.find_all("tr"):
-					tb = tr.find_parent("table")
-					# Attempt to count the cells in this row by assuming that they are
-					# its immediate children, and are TDs and/or THs.
-					cells = len(tr.find_all("td", recursive=False)) + len(tr.find_all("th", recursive=False))
-					if tb is parent: container.append(cells)
-					elif tb is elem: child.append(cells)
-					# Else it's a triple-nested table and we'll get to it later.
-				# So, what's worth reporting?
-				# A table containing a single row is notable.
-				if len(container) == 1:
-					print(fn, "Container table has only one row", container[0], child)
-				# Though all nested tables should be reported.
-				else:
-					print(fn, "Table inside table - cell counts:", container, child)
+	for table in soup.find_all("table"):
+		with ExceptionContext("Table", table):
+			rows = []
+			for tr in table.find_all("tr"):
+				tb = tr.find_parent("table")
+				if tb is not table: continue # Probably nested tables
+				# Attempt to count the cells in this row by assuming that they are
+				# its immediate children, and are TDs and/or THs.
+				cells = list(tr.find_all("td", recursive=False)) + list(tr.find_all("th", recursive=False))
+				# Note that this ignores colspan/rowspan
+				rows.append(len(cells))
+				if len(cells) == 1:
+					data = cells[0]
+			# Does the table contain a caption? If one exists, it is supposed to be
+			# the first child of the <table> element itself, but we're being a bit
+			# more flexible, and just making sure it isn't a child of an inner table.
+			caption = table.caption
+			if caption and caption.find_parent("table") is not table: caption = None
+			# So, what's worth reporting?
+			# A table containing a single row with a single cell in it is notable.
+			if rows == [1]:
+				if caption:
+					last = caption.get("align") == "bottom" # figcaption should be last instead of first
+					# Check whether it's left or right floated (or neither)
+					side = table.get("align", "").lower()
+					if side not in ("left", "right"): side = ""
+					# Check cellpadding (needs to become pixel padding on the pictureframe)
+					# The default is 1px, but for consistency, we'll just have either
+					# none or 5px. Since there's currently a big mess, we take any padding
+					# of at least 3px and make it 5px (even if it was 8px), otherwise none.
+					padding = int(table.get("cellpadding", "1")) >= 3
+					# Retain CSS classes on table (becomes div) and caption (becomes figcaption)
+					tbcls = table.get("class", [])
+					capcls = caption.get("class", [])
+					# Retain any element styles on the table (becomes figure)
+					tbsty = table.get("style")
+					report(fn, "Figure table:",
+						last, side, padding, tbcls, capcls,
+						tbsty,
+						#repr("".join(str(c) for c in data.children)),
+						#repr("".join(str(c) for c in caption.children)),
+					)
+					stats["FigLast %s" % last] += 1
+					stats["FigSide %s" % side] += 1
+					stats["FigPadding %s" % padding] += 1
+				#else: print(fn, "Table has only one cell:", repr("".join(str(c) for c in data.children)))
+			#elif caption:
+			#	print(fn, "Table caption:", repr("".join(str(c) for c in table.caption.children)))
 	if changed:
 		data = soup.encode(formatter="html5")
 		with open(fn, "wb") as f: f.write(data)
@@ -86,3 +120,4 @@ else:
 				classify(fn)
 
 print(stats.total(), stats)
+pprint.pprint(stats)
