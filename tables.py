@@ -102,8 +102,8 @@ def classify(fn):
 					figure.div["class"] = table.get("class", [])
 					figure.figcaption["class"] = caption.get("class", [])
 					# What was in the table cell now goes in the div; caption is still caption.
-					figure.div.extend(data.contents)
-					figure.figcaption.extend(caption.contents)
+					figure.div.extend(data)
+					figure.figcaption.extend(caption)
 					# Perfect. Let's swap that in!
 					table.replace_with(figure)
 					stats["FiguresChanged"] += 1
