@@ -42,6 +42,7 @@ def report_with_context(t, v, c):
 sys.excepthook = report_with_context
 
 logfile = open("tables.log", "w")
+changes = open("change.log", "w")
 def report(*msg):
 	print(json.dumps(msg), file=logfile)
 	print(*msg)
@@ -118,6 +119,7 @@ def classify(fn):
 		data = soup.encode(formatter="html5")
 		with open(fn, "wb") as f: f.write(data)
 		stats["Changed"] += 1
+		print(fn, file=changes)
 
 for fn in sys.argv[1:]:
 	if os.path.exists(fn):
