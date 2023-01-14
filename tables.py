@@ -99,8 +99,13 @@ def classify(fn):
 					# Retain any element styles from the table on the figure
 					if tbsty := table.get("style"): figure["style"] = tbsty
 					# Retain CSS classes from table on the inner div, and caption similarly
-					figure.div["class"] = table.get("class", [])
-					figure.figcaption["class"] = caption.get("class", [])
+					if cls := table.get("class", []): figure.div["class"] = cls
+					if cls := caption.get("class", []): figure.figcaption["class"] = cls
+					# If the table had a big fat border on it, that now belongs on the div.
+					border = int(table.get("border", "0"))
+					if border:
+						figure.div["style"] = "border: %dpx outset grey" % border
+						report(fn, "Table has border %d" % border)
 					# What was in the table cell now goes in the div; caption is still caption.
 					figure.div.extend(data)
 					figure.figcaption.extend(caption)
