@@ -2,6 +2,7 @@
 # to the version in the clone dir
 import os
 import random
+import sys
 import webbrowser
 
 mount = "/home/rosuav/gsarchive/live"
@@ -9,6 +10,8 @@ local = "/home/rosuav/gsarchive/clone"
 live = "https://gsarchive.net"
 
 with open("change.log") as f: files = [fn for fn in f.read().split("\n") if fn]
+
+if len(sys.argv) > 1: files = sys.argv[1:]
 
 while True:
 	file = random.choice(files)
