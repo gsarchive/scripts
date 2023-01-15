@@ -138,11 +138,16 @@ def classify(fn):
 					table.replace_with(figure)
 					stats["FiguresChanged"] += 1
 				else:
+					# Possibly just adding a border to one element
 					stats["Single-cell"] += 1
-					report(fn, "Table has only one cell") # "".join(str(c) for c in data.children)
+					# report(fn, "Table has only one cell") # "".join(str(c) for c in data.children)
 			elif caption:
 				stats["Caption"] += 1
-				report(fn, "Table caption:", "".join(str(c) for c in table.caption.children))
+				# report(fn, "Table caption:", "".join(str(c) for c in table.caption.children))
+			elif rows == [3, 1, 5]:
+				# This might be a <main> in disguise.
+				stats["3-1-5"] += 1
+				report(fn, "3-1-5 table")
 	if changed:
 		if need_gsa_css and not soup.find("link", href="/styles/gsarchive.css"):
 			soup.head.append(BeautifulSoup('<link href="/styles/gsarchive.css" rel="stylesheet" type="text/css">', "html.parser"))
