@@ -96,8 +96,15 @@ def classify(fn):
 					# of at least 3px and make it 5px (even if it was 8px), otherwise none.
 					padding = int(table.get("cellpadding", "1"))
 					if padding >= 3: figure["class"] += ["padded"]
-					# Retain any element styles from the table on the figure
-					if tbsty := table.get("style"): figure["style"] = tbsty
+					# Retain any element styles from the table
+					if tbsty := table.get("style"):
+						# Most of these styles go on the figure (eg margin), but a border
+						# belongs on the div instead.
+						if tbsty.startswith("border:"):
+							# Any time there's a border with something else, the border
+							# is listed first. So we cheat a bit on the parsing.
+							figure.div["style"], _, tbsty = tbsty.partition(";")
+						figure["style"] = tbsty
 					# Retain CSS classes from table on the inner div, and caption similarly
 					if cls := table.get("class", []): figure.div["class"] = cls
 					if cls := caption.get("class", []): figure.figcaption["class"] = cls
