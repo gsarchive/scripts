@@ -131,11 +131,11 @@ for fn in sys.argv[1:]:
 		with ExceptionContext("File name", fn): classify(fn)
 		break
 else:
-	for root, dirs, files in os.walk(root):
+	for base, dirs, files in os.walk(root):
 		if "backups" in dirs: dirs.remove("backups")
 		for file in files:
 			if not file.endswith(".html") and not file.endswith(".htm"): continue
-			fn = os.path.join(root, file)
+			fn = os.path.join(base, file)
 			with ExceptionContext("File name", fn):
 				classify(fn)
 
