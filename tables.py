@@ -104,7 +104,7 @@ def classify(fn):
 							# Any time there's a border with something else, the border
 							# is listed first. So we cheat a bit on the parsing.
 							figure.div["style"], _, tbsty = tbsty.partition(";")
-						figure["style"] = tbsty
+						figure["style"] = tbsty.strip()
 					# Retain CSS classes from table on the inner div, and caption similarly
 					if cls := table.get("class", []): figure.div["class"] = cls
 					if cls := caption.get("class", []): figure.figcaption["class"] = cls
