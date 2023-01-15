@@ -85,7 +85,7 @@ def classify(fn):
 					figure = [
 						"""<figure class="inlinefig"><figcaption></figcaption><div></div></figure>""",
 						"""<figure class="inlinefig"><div></div><figcaption></figcaption></figure>""",
-					][caption.get("align") == "bottom"]
+					][caption.get("align", "").lower() == "bottom"]
 					figure = BeautifulSoup(figure, "html.parser").figure
 					# Check whether it's left or right floated (or neither)
 					side = table.get("align", "").lower()
