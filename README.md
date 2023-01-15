@@ -24,7 +24,9 @@ To recreate the clone directory:
     $ find -type f -name \*.htm* | grep -v '^./backups/' >backups/htmlfiles.txt
     On the client:
     $ mount live
-    $ rsync -Pav gsarchiv:public_html/ --files-from live/backups/htmlfiles.txt clone/
+    $ rm -r clone; rsync -Pav gsarchiv:public_html/ --files-from live/backups/htmlfiles.txt clone/
+    To patch back files that got changed:
+    $ sed 's_/home/rosuav/gsarchive/clone_._' <scripts/change.log | rsync -Pav gsarchiv:public_html/ --files-from - clone/
 
 TODO:
 
