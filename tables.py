@@ -114,7 +114,6 @@ def classify(fn):
 						if "pictureframe" not in figure.div.get("class", []):
 							# The pictureframe class adds its own border
 							figure.div["style"] = "border: %dpx outset grey; padding: 2px" % border
-						report(fn, "Table has border %d" % border)
 						stats["FiguresBorders"] += 1
 					# Not sure whether these should be transformed in this way, but let's try it.
 					# Is there a better way to combine arbitrary CSS blocks? Probably not, since
@@ -131,7 +130,6 @@ def classify(fn):
 							if sty: sty += "; width: " + width
 							else: sty = "width: " + width
 							figure["style"] = sty
-							report(fn, "Table has width " + width)
 							stats["FiguresWidth"] += 1
 					# What was in the table cell now goes in the div; caption is still caption.
 					figure.div.extend(data)
