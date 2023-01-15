@@ -89,7 +89,7 @@ def classify(fn):
 					figure = BeautifulSoup(figure, "html.parser").figure
 					# Check whether it's left or right floated (or neither)
 					side = table.get("align", "").lower()
-					if side in ("left", "right"): figure["class"] += [side]
+					if side in ("left", "right", "center"): figure["class"] += [side]
 					# Check cellpadding (needs to become pixel padding on the pictureframe)
 					# The default is 1px, but for consistency, we'll just have either
 					# none or 5px. Since there's currently a big mess, we take any padding
