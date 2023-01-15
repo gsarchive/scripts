@@ -106,7 +106,8 @@ def classify(fn):
 							figure.div["style"], _, tbsty = tbsty.partition(";")
 						figure["style"] = tbsty.strip()
 					# Retain CSS classes from table on the inner div, and caption similarly
-					if cls := table.get("class", []): figure.div["class"] = cls
+					if cls := table.get("class", []) + table.td.get("class", []):
+						figure.div["class"] = cls
 					if cls := caption.get("class", []): figure.figcaption["class"] = cls
 					# If the table had a big fat border on it, that now belongs on the div.
 					if border := int(table.get("border", "0")):
