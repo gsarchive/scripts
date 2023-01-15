@@ -11,10 +11,12 @@ live = "https://gsarchive.net"
 
 with open("change.log") as f: files = [fn for fn in f.read().split("\n") if fn]
 
-if len(sys.argv) > 1: files = sys.argv[1:]
+if len(sys.argv) > 1:
+	if sys.argv[1] == "--all": pass # Just don't shuffle
+	else: files = sys.argv[1:]
+else: random.shuffle(files) # Normally randomize.
 
-while True:
-	file = random.choice(files)
+for file in files:
 	target = file.replace(local, "")
 	base, ext = os.path.splitext(target)
 	temp = base + "_spotcheck" + ext
