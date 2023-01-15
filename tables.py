@@ -146,8 +146,16 @@ def classify(fn):
 				# report(fn, "Table caption:", "".join(str(c) for c in table.caption.children))
 			elif rows == [3, 1, 5]:
 				# This might be a <main> in disguise.
+				# Ignoring any NavigableStrings that are just whitespace, there should be
+				# a tbody (always) containing three rows. The first row has a cell with
+				# an image whose name is "left.gif", etc, etc, etc. Match VERY strictly.
 				stats["3-1-5"] += 1
-				report(fn, "3-1-5 table")
+				# report(fn, "3-1-5 table")
+				children = ""
+				for child in table.tbody.children:
+					if isinstance(child, str) and child.strip() == "": continue
+					children += ":" + child.name
+				stats["3-1-5-child" + children] += 1
 	if changed:
 		if need_gsa_css and not soup.find("link", href="/styles/gsarchive.css"):
 			soup.head.append(BeautifulSoup('<link href="/styles/gsarchive.css" rel="stylesheet" type="text/css">', "html.parser"))
