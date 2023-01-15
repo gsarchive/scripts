@@ -102,10 +102,29 @@ def classify(fn):
 					if cls := table.get("class", []): figure.div["class"] = cls
 					if cls := caption.get("class", []): figure.figcaption["class"] = cls
 					# If the table had a big fat border on it, that now belongs on the div.
-					border = int(table.get("border", "0"))
-					if border:
-						figure.div["style"] = "border: %dpx outset grey" % border
+					if border := int(table.get("border", "0")):
+						if "pictureframe" not in figure.div.get("class", []):
+							# The pictureframe class adds its own border
+							figure.div["style"] = "border: %dpx outset grey; padding: 2px" % border
 						report(fn, "Table has border %d" % border)
+						stats["FiguresBorders"] += 1
+					# Not sure whether these should be transformed in this way, but let's try it.
+					# Is there a better way to combine arbitrary CSS blocks? Probably not, since
+					# this really isn't something you should be doing a lot of... Also, very few
+					# of these actually need to be edited, so there's a specific list.
+					if width := table.get("width"):
+						if fn.replace(root, "") in (
+							"/carte/savoy/theatre.html",
+							"/newsletters/trumpet_bray/html/tb22_8.html",
+							"/newsletters/trumpet_bray/html/tb22_9.html",
+							"/newsletters/trumpet_bray/html/tb23_1.html",
+						):
+							sty = figure.get("style")
+							if sty: sty += "; width: " + width
+							else: sty = "width: " + width
+							figure["style"] = sty
+							report(fn, "Table has width " + width)
+							stats["FiguresWidth"] += 1
 					# What was in the table cell now goes in the div; caption is still caption.
 					figure.div.extend(data)
 					figure.figcaption.extend(caption)
