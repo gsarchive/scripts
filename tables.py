@@ -49,6 +49,14 @@ def report(*msg):
 
 stats = collections.Counter()
 
+footer = """<footer>
+<hr align="center" width="95%" noshade>
+<div align="center"><span class="menuitem"><a href="../../index.html">Archive Home</a></span></div>
+<p class="copyright"><a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png"></a>
+ This work is licensed under a <BR> <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.</p>
+</footer>
+"""
+
 def classify(fn):
 	info = { }
 	with open(fn, "rb") as f: blob = f.read()
@@ -152,10 +160,45 @@ def classify(fn):
 				stats["3-1-5"] += 1
 				# report(fn, "3-1-5 table")
 				children = ""
-				for child in table.tbody.children:
-					if isinstance(child, str) and child.strip() == "": continue
-					children += ":" + child.name
+				for tr in table.tbody.children:
+					if tr.name != "tr": continue
+					desc = []
+					for td in tr.children:
+						if isinstance(td, str) and td.strip() == "": continue
+						# Find all non-empty children
+						childnodes = [child.name for child in td.children if not isinstance(child, str) or child.strip()]
+						# For each cell, categorize it.
+						if (td.img and "left.gif" in td.img["src"] and
+							td["colspan"] == "2" and td["rowspan"] == "2"):
+								desc.append("TL") # Top-Left
+						elif (td.img and "right.gif" in td.img["src"] and
+							td["colspan"] == "2" and td["rowspan"] == "2"):
+								desc.append("TR") # Top-Right
+						elif not childnodes:
+							# Empty cells, some of which can be further sub-categorized
+							if "gold.gif" in td.get("background", "") or td.get("bgcolor") in ("#cece99", "#cece9c"):
+								desc.append("B") # Border
+							elif "cream.gif" in td.get("background", "") or td.get("bgcolor") == "#feffe6":
+								desc.append("G") # Gap, cream
+							elif td.get("bgcolor") == "#000000":
+								desc.append("G") # Gap, black (not functionally different but may require logging)
+							else:
+								desc.append("0") # Empty
+								report(fn, "Empty cell, bg %r bgcol %r" % (td.get("background"), td.get("bgcolor")))
+						else:
+							desc.append("Other")
+							other_td = td # Don't reference this unless you've checked that there's an Other
+					children += ":" + "-".join(desc)
 				stats["3-1-5-child" + children] += 1
+				if children == ":TL-B-TR:G:B-G-Other-G-B":
+					# Okay, we got what we need. Let's do this!
+					changed = need_gsa_css = True
+					if soup.footer: soup.footer.replace_with("") # We'll have a new footer inside main.
+					main = soup.new_tag("main")
+					main.extend(other_td)
+					main.append(BeautifulSoup(footer, "html5lib").footer)
+					table.replace_with(main)
+					report(fn, "Replaced table with main")
 	if changed:
 		if need_gsa_css and not soup.find("link", href="/styles/gsarchive.css"):
 			soup.head.append(BeautifulSoup('<link href="/styles/gsarchive.css" rel="stylesheet" type="text/css">', "html.parser"))
