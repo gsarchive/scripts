@@ -51,7 +51,6 @@ stats = collections.Counter()
 
 footer = """<footer>
 <hr align="center" width="95%" noshade>
-<div align="center"><span class="menuitem"><a href="../../index.html">Archive Home</a></span></div>
 <p class="copyright"><a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png"></a>
  This work is licensed under a <BR> <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.</p>
 </footer>
