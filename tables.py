@@ -190,6 +190,17 @@ def classify(fn):
 					children += ":" + "-".join(desc)
 				stats["3-1-5-child" + children] += 1
 				if children == ":TL-B-TR:G:B-G-Other-G-B":
+					# Quick check: Sometimes a page has a table that looks like this, but there
+					# are other tables as well, and the main content is actually spread across
+					# them all. In that situation, the table we're looking at will be no more
+					# than the headers (eg breadcrumb trail); so to detect this situation, we
+					# look for all tables and find the largest.
+					greatest = max(soup.find_all("table"), key=lambda elem: len(str(elem)))
+					if table is not greatest:
+						# Nooooooooo! I am not the greatest! Shame is mine...
+						report(fn, "Matching table not largest")
+						stats["NotLargest"] += 1
+						continue
 					# Okay, we got what we need. Let's do this!
 					changed = need_gsa_css = True
 					if soup.footer: soup.footer.replace_with("") # We'll have a new footer inside main.
