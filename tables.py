@@ -189,7 +189,7 @@ def classify(fn):
 							other_td = td # Don't reference this unless you've checked that there's an Other
 					children += ":" + "-".join(desc)
 				stats["3-1-5-child" + children] += 1
-				if children == ":TL-B-TR:G:B-G-Other-G-B":
+				if children in (":TL-B-TR:G:B-G-Other-G-B", ":TL-B-TR:G:B-G-G-G-B"):
 					# Quick check: Sometimes a page has a table that looks like this, but there
 					# are other tables as well, and the main content is actually spread across
 					# them all. In that situation, the table we're looking at will be no more
