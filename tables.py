@@ -56,6 +56,10 @@ footer = """<footer>
 </footer>
 """
 
+def next_element_sibling(basis):
+	for elem in basis.next_siblings:
+		if elem.name: return elem
+
 def classify(fn):
 	info = { }
 	with open(fn, "rb") as f: blob = f.read()
@@ -190,22 +194,72 @@ def classify(fn):
 					children += ":" + "-".join(desc)
 				stats["3-1-5-child" + children] += 1
 				if children in (":TL-B-TR:G:B-G-Other-G-B", ":TL-B-TR:G:B-G-G-G-B"):
-					# Quick check: Sometimes a page has a table that looks like this, but there
-					# are other tables as well, and the main content is actually spread across
-					# them all. In that situation, the table we're looking at will be no more
-					# than the headers (eg breadcrumb trail); so to detect this situation, we
-					# look for all tables and find the largest.
-					greatest = max(soup.find_all("table"), key=lambda elem: len(str(elem)))
-					if table is not greatest:
-						# Nooooooooo! I am not the greatest! Shame is mine...
-						report(fn, "Matching table not largest")
-						stats["NotLargest"] += 1
-						continue
+					# Sometimes, the 3-1-5 table is actually just the topmost section, and it is
+					# followed by an outset table containing a heading banner, which is itself
+					# followed by the main content, in another table. (And it'll most likely have
+					# a standalone footer.)
+					next = next_element_sibling(table)
+					nextnext = next and next_element_sibling(next)
+					if next and nextnext and next.name == "table" and nextnext.name == "table":
+						# So.... three adjacent tables. What can we learn from them?
+						widths = table.get("width"), next.get("width"), nextnext.get("width")
+						if widths != ("700", "750", "700"):
+							# Unknown widths (possibly absent) - log it for later
+							report(fn, "Three tables, unknown", *widths)
+							stats["Three-%s-%s-%s" % widths] += 1
+							continue
+						# Otherwise: It's an outset table with matching tables above/below.
+						# The third table should have one row containing three cells.
+						more_content = maybe_content = None
+						for tr in nextnext.tbody.children:
+							if tr.name != "tr": continue
+							if maybe_content: break
+							nodes = [td for td in tr.children if not isinstance(td, str)]
+							if len(nodes) != 3: break
+							b1, maybe_content, b2 = nodes
+							b1 = [td for td in b1.children if not isinstance(td, str) or td.strip()]
+							b2 = [td for td in b2.children if not isinstance(td, str) or td.strip()]
+							if b1 or b2:
+								# One of the borders isn't empty, so it's not a border.
+								break
+						else:
+							more_content = maybe_content
+						if not more_content:
+							report(fn, "Three tables, last doesn't match")
+							stats["ThreeTB no-match"] += 1
+							continue
+					else:
+						if table is not max(soup.find_all("table"), key=lambda elem: len(str(elem))):
+							continue # Guard against editing ones we're not looking at
+						next = None
 					# Okay, we got what we need. Let's do this!
 					changed = need_gsa_css = True
 					if soup.footer: soup.footer.replace_with("") # We'll have a new footer inside main.
 					main = soup.new_tag("main")
-					main.extend(other_td)
+					if next:
+						# Merge in the other two tables; also, since this should be narrowed,
+						# stick a CSS class on the main and its banner.
+						main["class"] = "narrow"
+						if "Other" in children:
+							# Wrap the top section in a div to give it a bit of padding
+							top = soup.new_tag("div")
+							top["class"] = "topmatter"
+							top.extend(other_td)
+							main.append(top)
+						# The second table is the outset one; keep it as a table.
+						next["class"] = "banner"
+						main.append(next)
+						# And the third table is the majority of the content.
+						if more_content:
+							main.extend(more_content)
+							if "btext" in more_content.get("class", []):
+								# TODO: Add 30px left/right padding, and adjust banner accordingly.
+								stats["class=btext"] += 1
+								# main["class"] = "narrow padded"
+							else:
+								stats["not btext"] += 1
+						nextnext.replace_with("")
+					elif "Other" in children: main.extend(other_td)
 					main.append(BeautifulSoup(footer, "html5lib").footer)
 					table.replace_with(main)
 					report(fn, "Replaced table with main")
@@ -232,3 +286,8 @@ else:
 
 print(stats.total(), stats)
 pprint.pprint(stats)
+
+# Fix manually:
+# https://gsarchive.net/postcards/other_cards.htm - lost its padding - add 30px left/right, and adjust banner accordingly
+# https://gsarchive.net/gilbert/plays/fallen_fairies/reviews/tatler.html ditto
+# Or better: Don't fix them manually; if the TD has class "btext", add extra padding
