@@ -253,9 +253,8 @@ def classify(fn):
 						if more_content:
 							main.extend(more_content)
 							if "btext" in more_content.get("class", []):
-								# TODO: Add 30px left/right padding, and adjust banner accordingly.
 								stats["class=btext"] += 1
-								# main["class"] = "narrow padded"
+								main["class"] = "narrow padded"
 							else:
 								stats["not btext"] += 1
 						nextnext.replace_with("")
@@ -286,8 +285,3 @@ else:
 
 print(stats.total(), stats)
 pprint.pprint(stats)
-
-# Fix manually:
-# https://gsarchive.net/postcards/other_cards.htm - lost its padding - add 30px left/right, and adjust banner accordingly
-# https://gsarchive.net/gilbert/plays/fallen_fairies/reviews/tatler.html ditto
-# Or better: Don't fix them manually; if the TD has class "btext", add extra padding
