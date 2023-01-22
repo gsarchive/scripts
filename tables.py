@@ -65,6 +65,13 @@ def classify(fn):
 	with open(fn, "rb") as f: blob = f.read()
 	soup = BeautifulSoup(blob, "html5lib")
 	changed = need_gsa_css = False
+	# When we're done, the left/right corner GIFs shouldn't ever be needed. Note that
+	# this is pre-edit stats, so if any files are edited in this pass, they may show
+	# spuriously here.
+	no_main = not soup.main; left_right = "left.gif" in str(blob) or "right.gif" in str(blob)
+	if no_main and left_right: stats["No main, left/right GIF used"] += 1
+	elif no_main: stats["No main"] += 1
+	elif left_right: stats["Has main, still uses left/right GIF"] += 1
 	for table in soup.find_all("table"):
 		with ExceptionContext("Table", table):
 			rows = []
