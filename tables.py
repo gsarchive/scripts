@@ -222,8 +222,15 @@ def classify(fn):
 							if tr.name != "tr": continue
 							if maybe_content: break
 							nodes = [td for td in tr.children if not isinstance(td, str)]
-							if len(nodes) != 3: break
-							b1, maybe_content, b2 = nodes
+							if len(nodes) == 4:
+								b1, maybe_content, gap, b2 = nodes
+								gap = [td for td in gap.children if not isinstance(td, str) or td.strip()]
+								if gap: break # The gap isn't empty, so it's not a gap
+							elif len(nodes) == 3:
+								b1, maybe_content, b2 = nodes
+							else:
+								stats["ThreeTB no-match: %d" % len(nodes)] += 1
+								break
 							b1 = [td for td in b1.children if not isinstance(td, str) or td.strip()]
 							b2 = [td for td in b2.children if not isinstance(td, str) or td.strip()]
 							if b1 or b2:
