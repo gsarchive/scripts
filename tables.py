@@ -75,7 +75,7 @@ def classify(fn):
 			report(fn, "Has main, still uses left/right GIF")
 			stats["Has main, still uses left/right GIF"] += 1
 		else:
-			report(fn, "No main, left/right GIF used")
+			#report(fn, "No main, left/right GIF used")
 			stats["No main, left/right GIF used"] += 1
 	for table in soup.find_all("table"):
 		with ExceptionContext("Table", table):
@@ -261,7 +261,11 @@ def classify(fn):
 							stats["ThreeTB no-match"] += 1
 							continue
 					else:
-						if table is not max(soup.find_all("table"), key=lambda elem: len(str(elem))):
+						# The thanks page is like the landing page, and needs a manual "width: 100%" added.
+						# Other than that, it is just like a 3-1-5 table despite being inside another table.
+						if not fn.endswith("/thanks.html") and \
+								table is not max(soup.find_all("table"), key=lambda elem: len(str(elem))):
+							report(fn, "Ignoring not-largest table")
 							continue # Guard against editing ones we're not looking at
 						next = None
 					# Okay, we got what we need. Let's do this!
@@ -293,6 +297,9 @@ def classify(fn):
 					main.append(BeautifulSoup(footer, "html5lib").footer)
 					table.replace_with(main)
 					report(fn, "Replaced table with main")
+			else:
+				if "left.gif" in str(table) or "right.gif" in str(table):
+					stats["Left/Right:" + "-".join(str(r) for r in rows)] += 1
 	if changed:
 		if need_gsa_css and not soup.find("link", href="/styles/gsarchive.css"):
 			soup.head.append(BeautifulSoup('<link href="/styles/gsarchive.css" rel="stylesheet" type="text/css">', "html.parser"))
