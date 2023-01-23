@@ -167,7 +167,7 @@ def classify(fn):
 			elif caption:
 				stats["Caption"] += 1
 				# report(fn, "Table caption:", "".join(str(c) for c in table.caption.children))
-			elif rows == [3, 1, 5]:
+			elif rows == [3, 1, 5] or rows == [3, 5]:
 				# This might be a <main> in disguise.
 				# Ignoring any NavigableStrings that are just whitespace, there should be
 				# a tbody (always) containing three rows. The first row has a cell with
@@ -184,14 +184,18 @@ def classify(fn):
 						childnodes = [child.name for child in td.children if not isinstance(child, str) or child.strip()]
 						# For each cell, categorize it.
 						if (td.img and "left.gif" in td.img["src"] and
-							td["colspan"] == "2" and td["rowspan"] == "2"):
+							td["colspan"] == "2" and (rows == [3, 5] or td["rowspan"] == "2")):
 								desc.append("TL") # Top-Left
 						elif (td.img and "right.gif" in td.img["src"] and
-							td["colspan"] == "2" and td["rowspan"] == "2"):
+							td["colspan"] == "2" and (rows == [3, 5] or td["rowspan"] == "2")):
 								desc.append("TR") # Top-Right
 						elif not childnodes:
 							# Empty cells, some of which can be further sub-categorized
-							if "gold.gif" in td.get("background", "") or td.get("bgcolor") in ("#cece99", "#cece9c"):
+							if (
+								"gold.gif" in td.get("background", "")
+								or "top.gif" in td.get("background", "")
+								or td.get("bgcolor") in ("#cece99", "#cece9c")
+							):
 								desc.append("B") # Border
 							elif "cream.gif" in td.get("background", "") or td.get("bgcolor") == "#feffe6":
 								desc.append("G") # Gap, cream
@@ -205,7 +209,7 @@ def classify(fn):
 							other_td = td # Don't reference this unless you've checked that there's an Other
 					children += ":" + "-".join(desc)
 				stats["3-1-5-child" + children] += 1
-				if children in (":TL-B-TR:G:B-G-Other-G-B", ":TL-B-TR:G:B-G-G-G-B"):
+				if children in (":TL-B-TR:G:B-G-Other-G-B", ":TL-B-TR:B-G-Other-G-B", ":TL-B-TR:G:B-G-G-G-B"):
 					# Sometimes, the 3-1-5 table is actually just the topmost section, and it is
 					# followed by an outset table containing a heading banner, which is itself
 					# followed by the main content, in another table. (And it'll most likely have
@@ -298,7 +302,8 @@ def classify(fn):
 					table.replace_with(main)
 					report(fn, "Replaced table with main")
 			else:
-				if "left.gif" in str(table) or "right.gif" in str(table):
+				if "/left.gif" in str(table) or "/right.gif" in str(table):
+					report(fn, "Left/Right:" + "-".join(str(r) for r in rows))
 					stats["Left/Right:" + "-".join(str(r) for r in rows)] += 1
 	if changed:
 		if need_gsa_css and not soup.find("link", href="/styles/gsarchive.css"):
