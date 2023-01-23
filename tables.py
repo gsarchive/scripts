@@ -68,7 +68,7 @@ def classify(fn):
 	# When we're done, the left/right corner GIFs shouldn't ever be needed. Note that
 	# this is pre-edit stats, so if any files are edited in this pass, they may show
 	# spuriously here.
-	if "left.gif" in str(blob) or "right.gif" in str(blob):
+	if "/left.gif" in str(blob) or "/right.gif" in str(blob):
 		if soup.main:
 			# This normally shouldn't happen; it implies that a page has been edited,
 			# but still makes use of one of the corner GIFs.
