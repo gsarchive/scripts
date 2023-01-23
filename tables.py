@@ -68,10 +68,15 @@ def classify(fn):
 	# When we're done, the left/right corner GIFs shouldn't ever be needed. Note that
 	# this is pre-edit stats, so if any files are edited in this pass, they may show
 	# spuriously here.
-	no_main = not soup.main; left_right = "left.gif" in str(blob) or "right.gif" in str(blob)
-	if no_main and left_right: stats["No main, left/right GIF used"] += 1
-	elif no_main: stats["No main"] += 1
-	elif left_right: stats["Has main, still uses left/right GIF"] += 1
+	if "left.gif" in str(blob) or "right.gif" in str(blob):
+		if soup.main:
+			# This normally shouldn't happen; it implies that a page has been edited,
+			# but still makes use of one of the corner GIFs.
+			report(fn, "Has main, still uses left/right GIF")
+			stats["Has main, still uses left/right GIF"] += 1
+		else:
+			report(fn, "No main, left/right GIF used")
+			stats["No main, left/right GIF used"] += 1
 	for table in soup.find_all("table"):
 		with ExceptionContext("Table", table):
 			rows = []
@@ -220,7 +225,20 @@ def classify(fn):
 						more_content = maybe_content = None
 						for tr in nextnext.tbody.children:
 							if tr.name != "tr": continue
-							if maybe_content: break
+							if maybe_content:
+								# Sometimes there's an extra row with no content.
+								no_content = True
+								for td in tr.children:
+									# If any of the TR's children isn't empty,
+									# the entire row isn't empty.
+									if isinstance(td, str) and not td.strip(): continue # Ignore random whitespace
+									for child in td.children:
+										if not isinstance(child, str) or child.strip():
+											no_content = False
+								if no_content: continue # All good, probably no issues here
+								report(fn, "Three tables, last has extra row")
+								stats["Extra row"] += 1
+								break # Nope nope nope! Doesn't match.
 							nodes = [td for td in tr.children if not isinstance(td, str)]
 							if len(nodes) == 4:
 								b1, maybe_content, gap, b2 = nodes
@@ -267,10 +285,9 @@ def classify(fn):
 						if more_content:
 							main.extend(more_content)
 							if "btext" in more_content.get("class", []):
-								stats["class=btext"] += 1
+								# stats["class=btext"] += 1
 								main["class"] = "narrow padded"
-							else:
-								stats["not btext"] += 1
+							#else: stats["not btext"] += 1
 						nextnext.replace_with("")
 					elif "Other" in children: main.extend(other_td)
 					main.append(BeautifulSoup(footer, "html5lib").footer)
