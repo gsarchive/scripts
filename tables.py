@@ -60,6 +60,9 @@ def next_element_sibling(basis):
 	for elem in basis.next_siblings:
 		if elem.name: return elem
 
+def get_child_nodes(node):
+	return [child for child in node.children if not isinstance(child, str) or child.strip()]
+
 def classify(fn):
 	info = { }
 	with open(fn, "rb") as f: blob = f.read()
@@ -162,8 +165,42 @@ def classify(fn):
 					stats["FiguresChanged"] += 1
 				else:
 					# Possibly just adding a border to one element
-					stats["Single-cell"] += 1
-					# report(fn, "Table has only one cell") # "".join(str(c) for c in data.children)
+					# It could be the G&S Archive masthead; it could be a show-specific emblem;
+					# any others? List them here.
+					childnodes = get_child_nodes(data)
+					if len(childnodes) == 1:
+						if data.text.strip() == "Gilbert and Sullivan Archive":
+							if isinstance(childnodes[0], str):
+								stats["Archive masthead"] += 1
+								report(fn, "Archive masthead")
+							elif childnodes[0].name in ("a", "div"):
+								c = get_child_nodes(childnodes[0])
+								if len(c) == 1 and isinstance(c[0], str):
+									# Treat this the same as the regular masthead, but
+									# if there are any CSS classes on c[0], add them
+									# to the result. Note that this may need to be
+									# spot-checked separately.
+									stats["Archive masthead:" + childnodes[0].name] += 1
+									report(fn, "Archive masthead")
+								else:
+									children = ",".join(c.name for c in c)
+									stats["Archive masthead, wrapped:%s:%s" % (childnodes[0].name, children)] += 1
+									report(fn, "Archive masthead, multi-level", childnodes[0].name, children)
+							else:
+								stats["Archive masthead, wrapped:%s" % childnodes[0].name] += 1
+								report(fn, "Probable unrecognized masthead", childnodes[0].name)
+						elif "Gilbert and Sullivan Archive" in data.text:
+							stats["Combined masthead"] += 1
+							report(fn, "Possible combined masthead")
+						elif childnodes[0].name == "img":
+							stats["Image masthead"] += 1
+							report(fn, "Image masthead")
+						else:
+							stats["Unknown single-element single-cell"] += 1
+							report(fn, "Unknown single-el")
+					else:
+						stats["Single-cell:%s" % table.get("align")] += 1
+						report(fn, "Table has only one cell", table.get("align"), len(childnodes)) # "".join(str(c) for c in data.children)
 			elif caption:
 				stats["Caption"] += 1
 				# report(fn, "Table caption:", "".join(str(c) for c in table.caption.children))
@@ -305,6 +342,8 @@ def classify(fn):
 				if "/left.gif" in str(table) or "/right.gif" in str(table):
 					report(fn, "Left/Right:" + "-".join(str(r) for r in rows))
 					stats["Left/Right:" + "-".join(str(r) for r in rows)] += 1
+				# https://gsarchive.net/gilbert/letters/times/16.html
+				# There's still a border built of images, but it's not using /left or /right
 	if changed:
 		if need_gsa_css and not soup.find("link", href="/styles/gsarchive.css"):
 			soup.head.append(BeautifulSoup('<link href="/styles/gsarchive.css" rel="stylesheet" type="text/css">', "html.parser"))
