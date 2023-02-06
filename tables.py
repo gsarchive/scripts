@@ -342,8 +342,9 @@ def classify(fn):
 				if "/left.gif" in str(table) or "/right.gif" in str(table):
 					report(fn, "Left/Right:" + "-".join(str(r) for r in rows))
 					stats["Left/Right:" + "-".join(str(r) for r in rows)] += 1
-				# https://gsarchive.net/gilbert/letters/times/16.html
-				# There's still a border built of images, but it's not using /left or /right
+				if "/corner_1_trans.gif" in str(table):
+					report(fn, "Transparent corner:" + "-".join(str(r) for r in rows))
+					stats["Transparent corner:" + "-".join(str(r) for r in rows)] += 1
 	if changed:
 		if need_gsa_css and not soup.find("link", href="/styles/gsarchive.css"):
 			soup.head.append(BeautifulSoup('<link href="/styles/gsarchive.css" rel="stylesheet" type="text/css">', "html.parser"))
