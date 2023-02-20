@@ -17,7 +17,7 @@ if len(sys.argv) > 1:
 	else: files = sys.argv[1:]
 else: random.shuffle(files) # Normally randomize.
 
-for file in files:
+for n, file in enumerate(files):
 	target = file.replace(local, "")
 	base, ext = os.path.splitext(target)
 	temp = base + "_spotcheck" + ext
@@ -29,7 +29,7 @@ for file in files:
 		o.write(i.read())
 	webbrowser.open(live + base + ext)
 	webbrowser.open(live + temp)
-	inp = input("Enter when done, E to edit, or Q to stop: ").lower()
+	inp = input("%02d%% Enter when done, E to edit, or Q to stop: " % (n * 100 / len(files))).lower()
 	os.unlink(mount + temp)
 	if inp == "q": break
 	if inp == "e": subprocess.Popen(["SciTE", file, mount + target])
