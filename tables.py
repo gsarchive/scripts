@@ -192,34 +192,39 @@ def classify(fn):
 							div.append(childnodes[0])
 							table.replace_with(div)
 							changed = need_gsa_css = True
-						elif table.get("align") == "center" and \
-								table.get("border", "0") == "0" and \
-								not table.get("bordercolor"):
-							stats["Centering table"] += 1
-							div = soup.new_tag("div")
-							div["class"] = ["inset-center"]
-							if wid := table.get("width"):
-								# <table width=350> becomes style "min-width: 350px" but
-								# any other width eg 90% remains unchanged.
-								try:
-									if wid == str(int(wid)): wid += "px"
-								except ValueError: pass
-								div["style"] = "min-width: " + wid
-							if (pad := table.get("cellpadding", "0")) != "0":
-								if div.get("style"): div["style"] += "; padding: " + pad + "px"
-								else: div["style"] = "padding: " + pad + "px"
-							if a := data.get("align"):
-								if a != "left": div["class"].append(a + "-align")
-								report(fn, "Centered table, cell", a)
-								stats["Centered:%s" % a] += 1
-							if c := table.get("class"): div["class"] += c
-							if c := data.get("class"): div["class"] += c
-							div.append(childnodes[0])
-							table.replace_with(div)
-							changed = need_gsa_css = True
-						else:
-							stats["Unknown single-cell:%s" % table.get("align")] += 1
-							report(fn, "Unknown single-cell", table.get("align"))
+						continue
+					if table.get("align") == "center" and \
+							table.get("border", "0") == "0" and \
+							not table.get("bordercolor"):
+						stats["Centering table"] += 1
+						div = soup.new_tag("div")
+						div["class"] = ["inset-center"]
+						styles = [] # Any inline styles needed
+						if s := data.get("style"): styles.append(s)
+						if wid := table.get("width", data.get("width")):
+							# <table width=350> becomes style "width: 350px" but
+							# any other width eg 90% remains unchanged.
+							try:
+								if wid == str(int(wid)): wid += "px"
+							except ValueError: pass
+							styles.append("width: " + wid)
+						if (pad := table.get("cellpadding", "0")) != "0":
+							styles.append("padding: " + pad + "px")
+						if a := data.get("align"):
+							if a != "left": div["class"].append(a + "-align")
+							report(fn, "Centered table, cell", a)
+							stats["Centered:%s" % a] += 1
+						if c := table.get("class"): div["class"] += c
+						if c := data.get("class"): div["class"] += c
+						if bg := table.get("bgcolor", data.get("bgcolor")):
+							styles.append("background-color: " + bg)
+						if styles: div["style"] = "; ".join(styles)
+						div.extend(data)
+						table.replace_with(div)
+						changed = need_gsa_css = True
+					elif data.a:
+						stats["Link in cell:%s:%s" % (table.get("align"), data.get("align"))] += 1
+						report(fn, "Link in single cell", table.get("align"), data.get("align"))
 					else:
 						stats["Single-cell:%s" % table.get("align")] += 1
 						report(fn, "Table has only one cell", table.get("align"), len(childnodes)) # "".join(str(c) for c in data.children)
@@ -388,5 +393,4 @@ else:
 			with ExceptionContext("File name", fn):
 				classify(fn)
 
-print(stats.total(), stats)
 pprint.pprint(stats)
