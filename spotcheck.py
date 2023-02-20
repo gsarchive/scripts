@@ -2,6 +2,7 @@
 # to the version in the clone dir
 import os
 import random
+import subprocess
 import sys
 import webbrowser
 
@@ -28,6 +29,7 @@ for file in files:
 		o.write(i.read())
 	webbrowser.open(live + base + ext)
 	webbrowser.open(live + temp)
-	inp = input("Enter when done, or Q to stop: ").lower()
+	inp = input("Enter when done, E to edit, or Q to stop: ").lower()
 	os.unlink(mount + temp)
 	if inp == "q": break
+	if inp == "e": subprocess.Popen(["SciTE", file, mount + target])
