@@ -212,8 +212,6 @@ def classify(fn):
 							styles.append("padding: " + pad + "px")
 						if a := data.get("align"):
 							if a != "left": div["class"].append(a + "-align")
-							report(fn, "Centered table, cell", a)
-							stats["Centered:%s" % a] += 1
 						if c := table.get("class"): div["class"] += c
 						if c := data.get("class"): div["class"] += c
 						if bg := table.get("bgcolor", data.get("bgcolor")):
@@ -222,6 +220,10 @@ def classify(fn):
 						div.extend(data)
 						table.replace_with(div)
 						changed = need_gsa_css = True
+					elif table.get("border", "0") == "0" and not table.get("bordercolor"):
+						# Can probably be handled the same as center-aligned
+						stats["Borderless alignment table"] += 1
+						report(fn, "Borderless alignment table", table.get("align"), data.get("align"))
 					else:
 						stats["Single-cell:%s" % table.get("align")] += 1
 						report(fn, "Table has only one cell", table.get("align"), len(childnodes)) # "".join(str(c) for c in data.children)
