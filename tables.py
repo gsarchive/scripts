@@ -222,9 +222,6 @@ def classify(fn):
 						div.extend(data)
 						table.replace_with(div)
 						changed = need_gsa_css = True
-					elif data.a:
-						stats["Link in cell:%s:%s" % (table.get("align"), data.get("align"))] += 1
-						report(fn, "Link in single cell", table.get("align"), data.get("align"))
 					else:
 						stats["Single-cell:%s" % table.get("align")] += 1
 						report(fn, "Table has only one cell", table.get("align"), len(childnodes)) # "".join(str(c) for c in data.children)
