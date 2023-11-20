@@ -56,9 +56,11 @@ footer = """<footer class="standalone">
  This work is licensed under a <BR> <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.</p>
 </footer>"""
 def write_back(fn, soup):
-	soup.body.append(BeautifulSoup(footer, "html.parser"))
-	if not soup.find("link", href="/styles/gsarchive.css"):
-		soup.head.append(BeautifulSoup('<link href="/styles/gsarchive.css" rel="stylesheet" type="text/css">', "html.parser"))
+	#print("WRITEBACK:", fn); return # bail
+	if not soup.find("footer"):
+		soup.body.append(BeautifulSoup(footer, "html.parser"))
+		if not soup.find("link", href="/styles/gsarchive.css"):
+			soup.head.append(BeautifulSoup('<link href="/styles/gsarchive.css" rel="stylesheet" type="text/css">', "html.parser"))
 	data = soup.encode(formatter="html5")
 	with open(fn, "wb") as f: f.write(data)
 
