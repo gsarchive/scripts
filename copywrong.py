@@ -125,9 +125,10 @@ def classify(fn):
 				info["copyright"].add("David Stone")
 			elif m := copyright.search(cr.parent.text):
 				# Fixing this is going to be harder. But it's still an ARR
-				# copyright notice.
+				# copyright notice, or possibly just a reference that's
+				# subsequently followed by "G&S Archive" or similar.
 				# "residue": classify_residue(cr.parent, m, info)
-				info["copyright"].add("All Rights Reserved, messy")
+				info["copyright"].add("Word 'copyright' + Archive")
 			else: text.append(cr.text)
 	if not text:
 		if "CC-BY-SA 4.0" not in info["copyright"] and "CC-BY-SA 4.0 non-SSL" not in info["copyright"]:
@@ -137,7 +138,10 @@ def classify(fn):
 	if not info["copyright"]: # No recognized copyright notice, but possibly the word "copyright" used in a sentence
 		write_back(fn, soup)
 		info["copyright"].add("Added")
-	else: info["copyright"].add("Unknown")
+	else:
+		# References to copyright are going to be everywhere; it's okay to have them, as long as we also have
+		# the actual CC-BY-SA notice elsewhere.
+		info["copyright"].add("Word 'copyright'")
 	return info | {"text": text}
 
 for fn in sys.argv[1:]:
@@ -147,7 +151,7 @@ for fn in sys.argv[1:]:
 
 stats = collections.Counter()
 residues = collections.Counter()
-known_types = {"All Rights Reserved", "None", "CC-BY-SA 4.0", "David Stone", "Unknown"}
+known_types = {"CC-BY-SA 4.0", "David Stone", "Word 'copyright'", "Word 'copyright' + Archive", "Skip"}
 with open("copywrong.log", "w") as log:
 	for root, dirs, files in os.walk(root):
 		if "whowaswho" in dirs: dirs.remove("whowaswho")
