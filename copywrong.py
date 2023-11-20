@@ -98,7 +98,7 @@ def classify(fn):
 			tag["href"] = "https://creativecommons.org/licenses/by-sa/4.0/"
 		else: info.setdefault("links", []).append(tag["href"])
 	if "links" in info:
-		info["copyright"].add("Unknown")
+		info["copyright"].add("Unknown Link")
 	if "CC-BY-SA 4.0 non-SSL" in info["copyright"]: # There could be more than one, so write back just once
 		write_back(fn, soup)
 	text = []
