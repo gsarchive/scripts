@@ -44,6 +44,7 @@ just_a_date = re.compile(r"""^
 \s*(?P<mon>[A-Z][a-z]+)\.?\s*,?		# Month
 \s*(?P<year>[0-9]{,4})			# Year (optional, and may be two-digit)
 \s*\.?,?\s*				# Punctuation
+(Text\s*Copyright\s*©.*Design\s*)?	# Separate Text and Design copyright notices
 (All\s*Rights\s*Reserved\s*)?		# In case it wasn't caught by the other search
 $""", re.IGNORECASE | re.VERBOSE | re.DOTALL)
 
@@ -133,7 +134,10 @@ def classify(fn):
 			write_back(fn, soup)
 			info["copyright"].add("Added")
 		return info
-	info["copyright"].add("Unknown")
+	if not info["copyright"]: # No recognized copyright notice, but possibly the word "copyright" used in a sentence
+		write_back(fn, soup)
+		info["copyright"].add("Added")
+	else: info["copyright"].add("Unknown")
 	return info | {"text": text}
 
 for fn in sys.argv[1:]:
@@ -155,6 +159,9 @@ with open("copywrong.log", "w") as log:
 			except: print(fn); raise
 			for c in info["copyright"]: stats[c] += 1
 			stats["Total"] += 1
+			if "CC-BY-SA 4.0" not in info["copyright"]:
+				#print(info["copyright"])
+				stats["No-CC " + ",".join(sorted(info["copyright"]))] += 1
 			if not stats["Total"] % 1000: print(stats)
 			if "All Rights Reserved" in info["copyright"]:
 				if info["residue"] == "UNKNOWN": print(fn, info, file=log)
